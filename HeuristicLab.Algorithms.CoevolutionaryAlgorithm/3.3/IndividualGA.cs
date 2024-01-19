@@ -48,7 +48,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         Quality = problem.EvaluateUnConstrainedWeightedSumPearsonRsquaredError(Solution, random);
       } else {
         //Quality = problem.EvaluateUnconstrainedWeightedSumMeanSquaredError(Solution, random);
-        Quality = problem.EvaluateUnconstrainedWeightedSumMethod(Solution, random);
+        //Quality = problem.EvaluateUnconstrainedWeightedSumMethod(Solution, random);
+        Quality = problem.EvaluateUnConstrainedWeightedSumPearsonRsquaredError(Solution, random);
         //Quality = problem.EvaluateRandomlyWeightedSumMethod(Solution, random);
       }
       return Quality;

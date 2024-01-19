@@ -34,6 +34,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
     private const int InitialMaximumTreeLength = 25;
     private const double MinNormalizedTreeLengthValue = 0.0;
     private const double MaxNormalizedTreeLengthValue = 1.0;
+    private const double SymbolicExpressionTreeMinimumLength = 5.0;
 
     #region Parameter Properties
     public IValueParameter<IRegressionProblemData> ProblemDataParameter {
@@ -92,7 +93,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
     public int SymbolicExpressionTreeMaximumLength { get => SymbolicExpressionTreeMaximumLengthParameter.Value.Value; set => SymbolicExpressionTreeMaximumLengthParameter.Value.Value = value; }
     public override bool[] Maximization {
       get {
-        if (!Parameters.ContainsKey("Maximization")) return new bool[] {true, false};
+        if (!Parameters.ContainsKey("Maximization")) return new bool[] {false, false};
         return MaximizationParameter.Value.ToArray();
       }
     }
@@ -142,7 +143,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
       Parameters.Add(new FixedValueParameter<IntValue>("SymbolicExpressionTreeMaximumLength", "Maximum symbolic expression tree length", new IntValue(25)));
       Parameters.Add(new FixedValueParameter<DoubleLimit>("EstimationLimits", "The lower and upper limit for the estimated value that can be returned by the symbolic regression model."));
       Parameters.Add(new FixedValueParameter<IntRange>("TrainingPartition", "The partition of the problem data training partition, that should be used to calculate the fitness of an individual."));
-      Parameters.Add(new ValueParameter<DoubleArray>("Weights", "The weight values for each objective in the weighted sum GA.", new DoubleArray(new[] { 0.9, -0.1 })));
+      Parameters.Add(new ValueParameter<DoubleArray>("Weights", "The weight values for each objective in the weighted sum GA.", new DoubleArray(new[] { 0.9, 0.1 })));
 
       SymbolicExpressionTreeGrammar = new TypeCoherentExpressionGrammar();
       //SymbolicExpressionTreeGrammar = new LinearScalingGrammar();
@@ -241,17 +242,25 @@ namespace HeuristicLab.Problems.CooperativeProblem {
       List<double> objectives = new List<double>();
       objectives.Add(nmse);
       objectives.Add(treeLength);
-      double weightedSumValue = 0.0;
-      double maxTreeLength = SymbolicExpressionTreeMaximumLength;
-      for (int i = 0; i < objectives.Count; i++) {
-        if (i == 1) {
-          var normalizedTreeLength = (double)(treeLength - MinNormalizedTreeLengthValue) / (maxTreeLength - MinNormalizedTreeLengthValue) * (MaxNormalizedTreeLengthValue - MinNormalizedTreeLengthValue) + MinNormalizedTreeLengthValue;
-          weightedSumValue += Weights[i] * normalizedTreeLength;
-        }
-        else
-          weightedSumValue += Weights[i] * objectives[i];
-      }
-      objectives.Add(weightedSumValue);
+      var normalizedTreeLength = (double)(treeLength - SymbolicExpressionTreeMinimumLength) / (SymbolicExpressionTreeMaximumLength - SymbolicExpressionTreeMinimumLength);
+
+      // Weighted sum method
+      //double weightedSumValue = 0.0;
+      //for (int i = 0; i < objectives.Count; i++) {
+      //  if (i == 1) {
+
+      //    weightedSumValue += Weights[i] * normalizedTreeLength;
+      //  }
+      //  else
+      //    weightedSumValue += Weights[i] * objectives[i];
+      //}
+      //objectives.Add(weightedSumValue);
+
+      //Tchebycheff norm function
+      var f1 = Weights[0] * Math.Abs(nmse);
+      var f2 = Weights[1] * Math.Abs(normalizedTreeLength);
+
+      objectives.Add(Math.Max(f1, f2));
       return objectives.ToArray();
     }
     public double[] EvaluateRandomlyWeightedSumMethod(ISymbolicExpressionTree tree, IRandom random) {
@@ -295,21 +304,26 @@ namespace HeuristicLab.Problems.CooperativeProblem {
       //  penaltyFactor = 10;
       //}
       List<double> objectives = new List<double>();
-      objectives.Add(r2);
+      objectives.Add(1-r2);
       var treeLength = tree.Length;
       objectives.Add(treeLength);
-      double weightedSumValue = 0.0;
-      double maxTreeLength = SymbolicExpressionTreeMaximumLength;
-      for (int i = 0; i < objectives.Count; i++) {
-        Console.WriteLine($"Weights[{i}] = {Weights[i]}");
-        if (i == 0) {
-          weightedSumValue += Weights[i] * objectives[i];
-        } else {
-          var normalizedTreeLength = (double)(treeLength - MinNormalizedTreeLengthValue) / (maxTreeLength - MinNormalizedTreeLengthValue) * (MaxNormalizedTreeLengthValue - MinNormalizedTreeLengthValue) + MinNormalizedTreeLengthValue;
-          weightedSumValue += Weights[i] * normalizedTreeLength;
-        }
-      }
-      objectives.Add(weightedSumValue + penaltyFactor);
+      var normalizedTreeLength = (double)(treeLength - SymbolicExpressionTreeMinimumLength) / (SymbolicExpressionTreeMaximumLength - SymbolicExpressionTreeMinimumLength);
+      //double weightedSumValue = 0.0;
+      //for (int i = 0; i < objectives.Count; i++) {
+      //  if (i == 0) {
+      //    weightedSumValue += Weights[i] * objectives[i];
+      //  } else {
+
+      //    weightedSumValue += Weights[i] * (1-normalizedTreeLength);
+      //  }
+      //}
+      //objectives.Add(weightedSumValue + penaltyFactor);
+
+      //Tchebycheff norm function
+      var f1 = Weights[0] * Math.Abs(1-r2);
+      var f2 = Weights[1] * Math.Abs(normalizedTreeLength);
+      Console.WriteLine($"Weights = [{Weights[0]}, {Weights[1]}]");
+      objectives.Add(Math.Max(f1, f2));
       return objectives.ToArray();
     }
 
@@ -371,10 +385,10 @@ namespace HeuristicLab.Problems.CooperativeProblem {
         tree, ProblemData, rows, SymbolicExpressionTreeInterpreter, true,
         EstimationLimits.Lower, EstimationLimits.Upper);
 
-      return new double[2] { r2, tree.Length };
+      return new double[2] { 1-r2, tree.Length };
     }
     public void UpdateWeights(double w1, double w2) {
-      Weights = new DoubleArray(new[] { w1, -w2 });
+      Weights = new DoubleArray(new[] { w1, w2 });
     }
     private void ConfigueGrammar() {
       var grammar = SymbolicExpressionTreeGrammar as TypeCoherentExpressionGrammar;

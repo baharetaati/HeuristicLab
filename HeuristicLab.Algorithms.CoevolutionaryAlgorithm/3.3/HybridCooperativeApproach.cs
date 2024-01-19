@@ -363,6 +363,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     private int nsga2Interval = 0;
     [Storable]
     private int gaInterval = 0;
+    [Storable]
+    private int adjustWeightInterval = 0;
     //[Storable]
     //public GAWithOffspringSelection offspringSelector;
     
@@ -386,6 +388,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         numSelectedIndividualsGA = original.numSelectedIndividualsGA;
         numSelectedIndividualNSGA = original.numSelectedIndividualNSGA;
         pauseNSGA2 = original.pauseNSGA2;
+        gaInterval = original.gaInterval;
+        adjustWeightInterval = original.adjustWeightInterval;
         //offspringSelector = original.offspringSelector;
     }
     public override IDeepCloneable Clone(Cloner cloner) {
@@ -394,12 +398,12 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public HybridCooperativeApproach() {
       Parameters.Add(new FixedValueParameter<IntValue>("Seed", "The random seed used to initialize the new pseudo random number generator.", new IntValue(0)));
       Parameters.Add(new FixedValueParameter<BoolValue>("SetSeedRandomly", "True if the random seed should be set to a random value, otherwise false.", new BoolValue(true)));
-      Parameters.Add(new FixedValueParameter<IntValue>("GAPopulationSize", "The size of the population of solutions.", new IntValue(1000)));
-      Parameters.Add(new FixedValueParameter<IntValue>("NSGA2PopulationSize", "The size of the population of solutions.", new IntValue(1000)));
+      Parameters.Add(new FixedValueParameter<IntValue>("GAPopulationSize", "The size of the population of solutions.", new IntValue(100)));
+      Parameters.Add(new FixedValueParameter<IntValue>("NSGA2PopulationSize", "The size of the population of solutions.", new IntValue(100)));
       Parameters.Add(new FixedValueParameter<IntValue>("GAMaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
       Parameters.Add(new FixedValueParameter<IntValue>("NSGA2MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
-      Parameters.Add(new FixedValueParameter<IntValue>("GAMaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(1000000)));
-      Parameters.Add(new FixedValueParameter<IntValue>("NSGA2MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(1000000)));
+      Parameters.Add(new FixedValueParameter<IntValue>("GAMaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(100000)));
+      Parameters.Add(new FixedValueParameter<IntValue>("NSGA2MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(100000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Maximum Runtime", "The maximum runtime in seconds after which the algorithm stops. Use -1 to specify no limit for the runtime", new IntValue(3600)));
       Parameters.Add(new FixedValueParameter<IntValue>("MaxTreeLength", "The maximum tree length for expression trees.", new IntValue(25))); 
       Parameters.Add(new FixedValueParameter<IntValue>("MaxTreeDepth", "The maximum tree depth for expression trees.", new IntValue(20)));
@@ -448,7 +452,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       
       nsga2Interval = 0;
       gaInterval = 0;
-      
+      adjustWeightInterval = GAMaximumGenerations / 5;
       InitResults();
       base.Initialize(cancellationToken);
     }
@@ -602,7 +606,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       var nsga2HypervolumePerEvaluation = new IndexedDataTable<double>("NSGA2 Hypervolume Per Evaluation") {
         VisualProperties = {
-          XAxisTitle = "Evaluations",
+          XAxisTitle = "Evaluations", 
           YAxisTitle = "Hypervolume"
         },
         Rows = { new IndexedDataRow<double>("First-hit Graph") { VisualProperties = {
@@ -637,12 +641,15 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     }
     private void Iterate() {
       if (!pauseNSGA2) {
-        var nsgaCountEvaluations = 0;
-        var countNSGAEvaluations = nsga2.Apply(NSGA2PopulationSize, numSelectedIndividualNSGA, Problem, ResultsNSGA2Iterations, random);
-        nsgaCountEvaluations += countNSGAEvaluations;
-        ResultsNSGA2Evaluations += nsgaCountEvaluations;
-        nsga2Interval++;
+        if (ResultsNSGA2Evaluations < NSGA2MaximumEvaluatedSolutions) {
+          var nsgaCountEvaluations = 0;
+          var countNSGAEvaluations = nsga2.Apply(NSGA2PopulationSize, numSelectedIndividualNSGA, Problem, ResultsNSGA2Iterations, random);
+          nsgaCountEvaluations += countNSGAEvaluations;
+          ResultsNSGA2Evaluations += nsgaCountEvaluations;
+          nsga2Interval++;
+        }
       } else if (pauseNSGA2) {
+        if (ResultsGAEvaluations < GAMaximumEvaluatedSolutions) {
           var gaCountEvaluations = 0;
           int countGAEvaluations;
           if (ActiveOffspringSelector) {
@@ -652,7 +659,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           }
           gaCountEvaluations += countGAEvaluations;
           ResultsGAEvaluations += gaCountEvaluations;
-          gaInterval++;          
+          gaInterval++;
+        }
+                  
       }
     }
     private void Analyze() {
@@ -664,6 +673,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         GAAnalyzer();
         CommunicationGAToNSGA2();
         ResultsGAIterations++;
+        if (ResultsGAIterations % adjustWeightInterval == 0) {
+          AdjustWeights();
+        }
       }
       if (ResultsGAEvaluations == GAMaximumEvaluatedSolutions && ResultsNSGA2Evaluations < NSGA2MaximumEvaluatedSolutions) {
         if (pauseNSGA2) {
@@ -885,8 +897,16 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         var nonDominatedQuality = new DoubleArray(individual.Quality);
         ResultsBestQualitiesNSGA2.Add(nonDominatedQuality);
       }
+      double[] refPoints;
+      bool[] maximizationArray;
+      if (maximization) {
+        refPoints = new double[] { 0.0, MaxTreeLength };
+        maximizationArray = new bool[] { true, false };
+      } else {
+        refPoints = new double[] { 1.0, MaxTreeLength };
+        maximizationArray = new bool[] { false, false };
+      }
       
-      var refPoints = new double[] { 1.0, MaxTreeLength };
       List<double[]> nsga2ParetoFrontQualities = new List<double[]>();
 
       if (nsga2.CurrentFronts[0].Count > 0) {
@@ -894,9 +914,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           nsga2ParetoFrontQualities.Add(ind.Quality.ToArray());
         }
       }
-      var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
-      var maximizationArray = new bool[] {false, false};
-      var nsga2Hypervolume = Hypervolume.Calculate(transformedFront, refPoints, maximizationArray);
+      //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
+      
+      var nsga2Hypervolume = HypervolumeIndicator.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
       if (nsga2Interval > 5 && nsga2Hypervolume > ResultsHypervolumeNSGA2 && ResultsGAEvaluations < GAMaximumEvaluatedSolutions && ResultsNSGA2Evaluations < NSGA2MaximumEvaluatedSolutions) {
         ResultsNSGA2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
         Console.WriteLine($"nsga2Interval = {nsga2Interval}");
@@ -945,9 +965,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       foreach (var individual in nsga2.CurrentFronts[0]) {
         double[] fitnessValues = individual.Quality;
         double qlty = fitnessValues[0]; 
-        if (maximization) {
-          qlty = 1- qlty;
-        }
+        //if (maximization) {
+        //  qlty = 1- qlty;
+        //}
         double treeLength = fitnessValues[1]; // Tree length 
         dataPointsParetoFront.Add(new Point2D<double>(treeLength, qlty));
       }
@@ -1045,13 +1065,20 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
             gaContribution++;
           }
         }
-        
+        var maximization = Problem.Maximization[0];
         if (gaContribution > 0) {
-          var refPoints = new double[] { 1.0, MaxTreeLength };
+          double[] refPoints;
+          bool[] maximizationArray;
+          if (maximization) {
+            refPoints = new double[] { 0.0, MaxTreeLength };
+            maximizationArray = new bool[] { true, false };
+          } else {
+            refPoints = new double[] { 1.0, MaxTreeLength };
+            maximizationArray = new bool[] { false, false };
+          }
           nsga2ParetoFrontQualities.AddRange(gaContributionParetoFront);
-          var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
-          var maximizationArray = new bool[] { false, false };
-          var nsga2HypervolumeIncludingGASolutions = Hypervolume.Calculate(transformedFront, refPoints, maximizationArray);
+          //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
+          var nsga2HypervolumeIncludingGASolutions = HypervolumeIndicator.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
           ResultsHypervolumeNSGA2WithGAContribution = nsga2HypervolumeIncludingGASolutions;
           nsga2.AppendToNSGA2Population(gaBestSolutions, Problem, NSGA2PopulationSize);
           AnalyzeParetoFrontWhileCommunication(gaBestQualities, gaContributionParetoFront);
@@ -1103,65 +1130,76 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
     //gaParetoFrontQualities.RemoveAll(item => item == null);
     private void AdjustWeights() {
-      if (ga.Fitness.Count > 0) {
-        var crowdingDist = nsga2.CrowdingDistances;
-        List<int> indexes = Enumerable.Range(0, crowdingDist.Count).ToList();
-        indexes.Sort((i1, i2) => -crowdingDist[i1].CompareTo(crowdingDist[i2]));
+      
+      var w1 = Problem.Weights[0];
+      var w2 = Problem.Weights[1];
 
-        int halfCount = indexes.Count / 2;
-        List<int> selectedIndices = indexes.Take(halfCount).ToList();
+      w1 -= .2;
 
-        List<double[]> selectedFit = new List<double[]>();
-
-        foreach (var ind in selectedIndices) {
-          selectedFit.Add(nsga2.Fitness[ind].ToArray());
-        }
-
-        double[] averageErrors = Enumerable.Range(0, selectedFit[0].Length)
-      .Select(i => selectedFit.Average(arr => arr[i]))
-      .ToArray();
-
-        var err_avg = averageErrors[0];
-        var treeLen_avg = averageErrors[1];
-
-        double bestErr = ga.Fitness.Max(arr => arr[0]);
-        double bestTreeLen = ga.Fitness.Min(arr => arr[1]);
-
-        // Tree length normalization
-        double minTreeLength = 0.0;
-        double maxTreeLength = MaxTreeLength;
-        double minNormalizedTreeLength = 0.0;
-        double maxNormalizedTreeLength = 1.0;
-
-        double normalizedAvgTreeLength = (double)(treeLen_avg - minTreeLength) / (maxTreeLength - minTreeLength);
-        double normalizedBestTreeLength = (double)(bestTreeLen - minNormalizedTreeLength) / (maxTreeLength - minNormalizedTreeLength) * (maxNormalizedTreeLength - minNormalizedTreeLength) + minNormalizedTreeLength;
-
-        double errDif = Math.Abs(err_avg - bestErr);
-        double treeLenDif = Math.Abs(normalizedAvgTreeLength - normalizedBestTreeLength);
-        Console.WriteLine($"errDif = {errDif} vs. treeLenDif = {treeLenDif}");
-
-        double delta = Math.Abs(errDif - treeLenDif);
-        double threshold = .001;
-        double[] weights = Problem.Weights.ToArray();
-        double w1 = weights[0];
-        double w2 = Math.Abs(weights[1]);
-
-        if (delta <= threshold) {
-          w1 = .5;
-          w2 = .5;
-        } else if (errDif > treeLenDif) {
-          if (weights[0] != 1.0 && weights[0] + .1 <= 1) {
-            w1 = weights[0] + .1;
-            w2 = 1 - w1;
-          }
-        } else {
-          if (Math.Abs(weights[1]) != 1.0 && Math.Abs(weights[1]) + .1 <= 1) {
-            w2 = Math.Abs(weights[1]) + .1;
-            w1 = 1 - w2;
-          }
-        }
-        Problem.UpdateWeights(w1, w2);
+      if (w1 < 0) {
+        w1 = .1;
       }
+      w2 = 1 - w1;
+      Problem.UpdateWeights(w1, w2);
+      //if (ga.Fitness.Count > 0) {
+      //  var crowdingDist = nsga2.CrowdingDistances;
+      //  List<int> indexes = Enumerable.Range(0, crowdingDist.Count).ToList();
+      //  indexes.Sort((i1, i2) => -crowdingDist[i1].CompareTo(crowdingDist[i2]));
+
+      //  int halfCount = indexes.Count / 2;
+      //  List<int> selectedIndices = indexes.Take(halfCount).ToList();
+
+      //  List<double[]> selectedFit = new List<double[]>();
+
+      //  foreach (var ind in selectedIndices) {
+      //    selectedFit.Add(nsga2.Fitness[ind].ToArray());
+      //  }
+
+      //  double[] averageErrors = Enumerable.Range(0, selectedFit[0].Length)
+      //.Select(i => selectedFit.Average(arr => arr[i]))
+      //.ToArray();
+
+      //  var err_avg = averageErrors[0];
+      //  var treeLen_avg = averageErrors[1];
+
+      //  double bestErr = ga.Fitness.Max(arr => arr[0]);
+      //  double bestTreeLen = ga.Fitness.Min(arr => arr[1]);
+
+      //  // Tree length normalization
+      //  double minTreeLength = 0.0;
+      //  double maxTreeLength = MaxTreeLength;
+      //  double minNormalizedTreeLength = 0.0;
+      //  double maxNormalizedTreeLength = 1.0;
+
+      //  double normalizedAvgTreeLength = (double)(treeLen_avg - minTreeLength) / (maxTreeLength - minTreeLength);
+      //  double normalizedBestTreeLength = (double)(bestTreeLen - minNormalizedTreeLength) / (maxTreeLength - minNormalizedTreeLength) * (maxNormalizedTreeLength - minNormalizedTreeLength) + minNormalizedTreeLength;
+
+      //  double errDif = Math.Abs(err_avg - bestErr);
+      //  double treeLenDif = Math.Abs(normalizedAvgTreeLength - normalizedBestTreeLength);
+      //  Console.WriteLine($"errDif = {errDif} vs. treeLenDif = {treeLenDif}");
+
+      //  double delta = Math.Abs(errDif - treeLenDif);
+      //  double threshold = .001;
+      //  double[] weights = Problem.Weights.ToArray();
+      //  double w1 = weights[0];
+      //  double w2 = Math.Abs(weights[1]);
+
+      //  if (delta <= threshold) {
+      //    w1 = .5;
+      //    w2 = .5;
+      //  } else if (errDif > treeLenDif) {
+      //    if (weights[0] != 1.0 && weights[0] + .1 <= 1) {
+      //      w1 = weights[0] + .1;
+      //      w2 = 1 - w1;
+      //    }
+      //  } else {
+      //    if (Math.Abs(weights[1]) != 1.0 && Math.Abs(weights[1]) + .1 <= 1) {
+      //      w2 = Math.Abs(weights[1]) + .1;
+      //      w1 = 1 - w2;
+      //    }
+      //  }
+      //  Problem.UpdateWeights(w1, w2);
+      //}
     }
     private List<IndividualGA> GABestErrorSelection() {
 
@@ -1234,9 +1272,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       bool maximization = Problem.Maximization[0];
       if (gaPF.Count > 0) {
         foreach (var q in gaPF) {
-          if (maximization) {
-            q[0] = 1 - q[0];
-          }
+          //if (maximization) {
+          //  q[0] = 1 - q[0];
+          //}
           dataPointsParetoFront.Add(new Point2D<double>(q[1], q[0]));
         }
       }
@@ -1259,9 +1297,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         ResultsScatterPlot.Rows["Contributed Points"].Points.Replace(dataPointsContributedPF);
       }
       var bestSofarQuality = new Point2D<double>(ResultsBestQualityGA[1], ResultsBestQualityGA[0]);
-      if (maximization) {
-        bestSofarQuality = new Point2D<double>(ResultsBestQualityGA[1], 1-ResultsBestQualityGA[0]);
-      }
+      //if (maximization) {
+      //  bestSofarQuality = new Point2D<double>(ResultsBestQualityGA[1], 1-ResultsBestQualityGA[0]);
+      //}
       
       ResultsScatterPlot.Rows["So-far Best Points"].Points.Replace(bestSofarQuality.ToEnumerable());
 

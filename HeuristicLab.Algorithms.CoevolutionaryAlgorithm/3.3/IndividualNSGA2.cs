@@ -61,7 +61,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       if (problem.Maximization[0]) {
         Quality = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
       } else {
-        Quality = problem.EvaluateUnconstrainedMultiObjectiveProblem(Solution, random);
+        //Quality = problem.EvaluateUnconstrainedMultiObjectiveProblem(Solution, random);
+        Quality = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
         //Quality = problem.EvaluateMultiObjectiveMeanSquaredError(Solution, random);
         //Quality = problem.EvaluateMultiObjectiveWithComplexity(Solution, random);
       }
