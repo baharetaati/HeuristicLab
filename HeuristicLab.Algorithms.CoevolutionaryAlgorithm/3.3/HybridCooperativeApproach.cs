@@ -398,8 +398,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public HybridCooperativeApproach() {
       Parameters.Add(new FixedValueParameter<IntValue>("Seed", "The random seed used to initialize the new pseudo random number generator.", new IntValue(0)));
       Parameters.Add(new FixedValueParameter<BoolValue>("SetSeedRandomly", "True if the random seed should be set to a random value, otherwise false.", new BoolValue(true)));
-      Parameters.Add(new FixedValueParameter<IntValue>("GAPopulationSize", "The size of the population of solutions.", new IntValue(100)));
-      Parameters.Add(new FixedValueParameter<IntValue>("NSGA2PopulationSize", "The size of the population of solutions.", new IntValue(100)));
+      Parameters.Add(new FixedValueParameter<IntValue>("GAPopulationSize", "The size of the population of solutions.", new IntValue(500)));
+      Parameters.Add(new FixedValueParameter<IntValue>("NSGA2PopulationSize", "The size of the population of solutions.", new IntValue(500)));
       Parameters.Add(new FixedValueParameter<IntValue>("GAMaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
       Parameters.Add(new FixedValueParameter<IntValue>("NSGA2MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
       Parameters.Add(new FixedValueParameter<IntValue>("GAMaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(100000)));
@@ -682,14 +682,12 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           pauseNSGA2 = false;
           nsga2Interval = 0;
           ResultsGARunIntervalInGenerations.Add(new IntValue(gaInterval));
-          Console.WriteLine($"gaInterval = {gaInterval}");
         }
       } else if (ResultsNSGA2Evaluations == NSGA2MaximumEvaluatedSolutions && ResultsGAEvaluations < GAMaximumEvaluatedSolutions) {
         if (!pauseNSGA2) {
           pauseNSGA2 = true;
           gaInterval = 0;
           ResultsNSGA2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
-          Console.WriteLine($"nsga2Interval = {nsga2Interval}");
         }
       }
       if (ResultsNSGA2Evaluations == NSGA2MaximumEvaluatedSolutions) {
@@ -723,14 +721,14 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         worstQlty = double.MinValue;
       }
       if (maximization) {
-        foreach (var individual in ga.Population) {
+        foreach (var individual in ga.Elites) {
           if (individual.Quality[weightedSumIndex] > bestQlty) {
             bestQlty = individual.Quality[weightedSumIndex];
             bestQualityGA = individual.Quality;
           }
         }
 
-        foreach (var individual in ga.Population) {
+        foreach (var individual in ga.Elites) {
           if (individual.Quality[weightedSumIndex] < worstQlty) {
             worstQlty = individual.Quality[weightedSumIndex];
             worstQualityGA = individual.Quality;
@@ -738,14 +736,14 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           }
         }
       } else {
-        foreach (var individual in ga.Population) {
+        foreach (var individual in ga.Elites) {
           if (individual.Quality[weightedSumIndex] < bestQlty) {
             bestQlty = individual.Quality[weightedSumIndex];
             bestQualityGA = individual.Quality;
             //treeGA = individual.Solution;
           }
         }
-        foreach (var individual in ga.Population) {
+        foreach (var individual in ga.Elites) {
           if (individual.Quality[weightedSumIndex] > worstQlty) {
             worstQlty = individual.Quality[weightedSumIndex];
             worstQualityGA = individual.Quality;
@@ -797,7 +795,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       if (Problem.Maximization[0]) {
         bestQlty = double.MinValue;
         worstQlty = double.MaxValue;
-        foreach (var individual in ga.Population) {
+        foreach (var individual in ga.Elites) {
           if (individual.Quality[0] > bestQlty) {
             bestQlty = individual.Quality[0];
             bestQualityGA = individual.Quality;
@@ -811,7 +809,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       } else {
         bestQlty = double.MaxValue;
         worstQlty = double.MinValue;
-        foreach (var individual in ga.Population) {
+        foreach (var individual in ga.Elites) {
           if (individual.Quality[0] < bestQlty) {
             bestQlty = individual.Quality[0];
             bestQualityGA = individual.Quality;
@@ -916,7 +914,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       }
       //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
       
-      var nsga2Hypervolume = HypervolumeIndicator.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
+      var nsga2Hypervolume = HypervolumeCalculation.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
       if (nsga2Interval > 5 && nsga2Hypervolume > ResultsHypervolumeNSGA2 && ResultsGAEvaluations < GAMaximumEvaluatedSolutions && ResultsNSGA2Evaluations < NSGA2MaximumEvaluatedSolutions) {
         ResultsNSGA2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
         Console.WriteLine($"nsga2Interval = {nsga2Interval}");
@@ -1078,7 +1076,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           }
           nsga2ParetoFrontQualities.AddRange(gaContributionParetoFront);
           //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
-          var nsga2HypervolumeIncludingGASolutions = HypervolumeIndicator.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
+          var nsga2HypervolumeIncludingGASolutions = HypervolumeCalculation.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
           ResultsHypervolumeNSGA2WithGAContribution = nsga2HypervolumeIncludingGASolutions;
           nsga2.AppendToNSGA2Population(gaBestSolutions, Problem, NSGA2PopulationSize);
           AnalyzeParetoFrontWhileCommunication(gaBestQualities, gaContributionParetoFront);
@@ -1206,7 +1204,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       var qualities = new List<double[]>();
       var weightedSumValues = new List<double>();
       bool maximization = Problem.Maximization[0];
-      foreach (var individual in ga.Population) {
+      foreach (var individual in ga.Elites) {
         double[] indQualities = individual.Quality.Take(Problem.NumObjectives).ToArray();
         double indQualities2 = individual.Quality[Problem.NumObjectives];
         qualities.Add(indQualities);
@@ -1236,7 +1234,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       for (int i = 0; i < numSelectedBasedOnWS; i++) {
         //selectedFitness.Add(qualities[indexes2[i]].ToArray());
-        selectedSolutions.Add((IndividualGA)ga.Population[indexes2[i]].Clone());
+        selectedSolutions.Add((IndividualGA)ga.Elites[indexes2[i]].Clone());
       }
       //ResultsGAContribution[ResultsIterations, 0] = numSelectedForCommunication;
       return selectedSolutions;
@@ -1245,7 +1243,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       int[] rank;
       var solutions = new List<ISymbolicExpressionTree>();
       var qualities = new List<double[]>();
-      foreach (var individual in ga.Population) {
+      foreach (var individual in ga.Elites) {
         solutions.Add((ISymbolicExpressionTree)individual.Solution.Clone());
         double[] indQualities = individual.Quality.Take(Problem.NumObjectives).ToArray();
         qualities.Add(indQualities);
@@ -1260,7 +1258,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       for (int i = 0; i < rank.Length; i++) {
         if (rank[i] == 0) {
           gaNonDominatedSolutionsCount++;
-          ga.Population[i].BeingCommunicated = true;
+          ga.Elites[i].BeingCommunicated = true;
 
         }
       }

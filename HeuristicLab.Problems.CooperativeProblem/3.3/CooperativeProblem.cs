@@ -34,7 +34,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
     private const int InitialMaximumTreeLength = 25;
     private const double MinNormalizedTreeLengthValue = 0.0;
     private const double MaxNormalizedTreeLengthValue = 1.0;
-    private const double SymbolicExpressionTreeMinimumLength = 5.0;
+    private const double SymbolicExpressionTreeMinimumLength = 1.0;
 
     #region Parameter Properties
     public IValueParameter<IRegressionProblemData> ProblemDataParameter {

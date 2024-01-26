@@ -108,18 +108,19 @@
   <ItemGroup>
     <Compile Include="BestSelection.cs" />
     <Compile Include="CrowdedTournamentSelection.cs" />
+    <Compile Include="DasAndDennisRefrences.cs" />
     <Compile Include="GA.cs" />
     <Compile Include="GeneralizedRankSelection.cs" />
     <Compile Include="GeneralizedRankSelection3.cs" />
     <Compile Include="GeneralizedRankSelection4.cs" />
     <Compile Include="GeneralizedRankSelection5.cs" />
     <Compile Include="HybridCooperativeApproach.cs" />
+    <Compile Include="HypervolumeCalculation.cs" />
     <Compile Include="Individual.cs" />
     <Compile Include="IndividualGA.cs" />
     <Compile Include="IndividualNSGA2.cs" />
     <Compile Include="ISelectionStrategy.cs" />
     <Compile Include="NSGA2.cs" />
-    <Compile Include="GAWithOffspringSelection.cs" />
     <Compile Include="PercentageTournamentSelection.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
