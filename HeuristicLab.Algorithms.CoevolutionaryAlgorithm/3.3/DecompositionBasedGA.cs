@@ -209,11 +209,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       double bestQlty = double.MaxValue;
       double worstQlty = double.MinValue;
       int weightedSumIndex = QualityLength - 1;
+      
       if (maximization) {
         bestQlty = double.MinValue;
         worstQlty = double.MaxValue;
-      }
-      if (maximization) {
         foreach (var individual in Elites) {
           if (individual.Quality[weightedSumIndex] > bestQlty) {
             bestQlty = individual.Quality[weightedSumIndex];
@@ -494,6 +493,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         var bestIndex = FindElitesIndex(fit, maximization);
         Elites.Add((IndividualGA)Population[i][bestIndex].Clone());
       }
+      FindBestWorstAverageQuality(maximization);
       return countEvaluations;
     }
       public int ApplyExtremeOffspringSelection(int populationSize, CooperativeProblem problem, IRandom random) {
@@ -597,7 +597,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Console.WriteLine($"Bad Elites No = {countBadElites} out of {Elites.Count}");
       FindBestWorstAverageQuality(maximization);
 
-      ActiveSelectionPressure = (double)countEvaluations / populationSize;
+      ActiveSelectionPressure = (double)(countSuccessfulOffspring + countUnsuccessfulOffspring) / populationSize;
       CountSuccessfulOffspring = countSuccessfulOffspring;
       CountUnsuccessfulOffspring = countUnsuccessfulOffspring;
       return countEvaluations;

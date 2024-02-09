@@ -390,7 +390,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
         tree, ProblemData, rows, SymbolicExpressionTreeInterpreter, true,
         EstimationLimits.Lower, EstimationLimits.Upper);
 
-      return new double[2] { r2, tree.Length };
+      return new double[2] { 1-r2, tree.Length };
     }
     public void UpdateWeights(double w1, double w2) {
       Weights = new DoubleArray(new[] { w1, w2 });

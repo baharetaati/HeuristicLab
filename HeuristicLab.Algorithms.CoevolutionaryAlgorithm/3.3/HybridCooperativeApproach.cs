@@ -42,8 +42,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       return new HybridCooperativeApproach(this, cloner);
     }
     public HybridCooperativeApproach() : base(){
-      Parameters.Add(new FixedValueParameter<BoolValue>("Run Two Algorithms Separately", "To define if two algorithms should be run independently", new BoolValue(true)));
-      Parameters.Add(new FixedValueParameter<BoolValue>("ActiveOffspringSelector", "To define if DecompositionBasedGA should be single- or multi-objective", new BoolValue(true)));
+      Parameters.Add(new FixedValueParameter<BoolValue>("Run Two Algorithms Separately", "To define if two algorithms should be run independently", new BoolValue(false)));
+      Parameters.Add(new FixedValueParameter<BoolValue>("ActiveOffspringSelector", "To define if offspring selector should be applied ", new BoolValue(true)));
 
     }
     protected override void Initialize(CancellationToken cancellationToken) {
@@ -63,7 +63,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       alg2 = new NSGA2(Problem.NumObjectives, treeRequirements);
       Alg1MaximumGenerations = Alg1MaximumEvaluatedSolutions / Alg1PopulationSize;
       Alg2MaximumGenerations = Alg2MaximumEvaluatedSolutions / Alg2PopulationSize;
-      pauseNSGA2 = false;
+      pauseAlg2 = false;
       nsga2Interval = 0;
 
       if (SetSeedRandomly) {
@@ -75,7 +75,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       base.Initialize(cancellationToken);
     }
     protected override void Run(CancellationToken cancellationToken) {
-      while ((ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) && (ResultsActivePressure <= 100) /*|| (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions)*/) {
+      while (((ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) && (ResultsActivePressure <= 100)) || (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions)) {
         try {
           Iterate();
           cancellationToken.ThrowIfCancellationRequested();
@@ -138,15 +138,14 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       } else {
         IterateOrchestrator();
       }
-
     }
     private void Analyze() {
-      NSGA2Analyzer();
-      
-      GAAnalyzer();
+      AnalyzeOrchestrator();
+      //NSGA2Analyzer();
+      //GAAnalyzer();
       
       //DecompositionBasedGA resutls
-      //if (!pauseNSGA2) {
+      //if (!pauseAlg2) {
       //  NSGA2Analyzer();
       //  ResultsAlg2Iterations++;
       //} else {
@@ -158,14 +157,14 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       //  }
       //}
       //if (ResultsAlg1Evaluations == Alg1MaximumEvaluatedSolutions && ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
-      //  if (pauseNSGA2) {
-      //    pauseNSGA2 = false;
+      //  if (pauseAlg2) {
+      //    pauseAlg2 = false;
       //    nsga2Interval = 0;
       //    ResultsAlg1RunIntervalInGenerations.Add(new IntValue(gaInterval));
       //  }
       //} else if (ResultsAlg2Evaluations == Alg2MaximumEvaluatedSolutions && ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) {
-      //  if (!pauseNSGA2) {
-      //    pauseNSGA2 = true;
+      //  if (!pauseAlg2) {
+      //    pauseAlg2 = true;
       //    gaInterval = 0;
       //    ResultsAlg2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
       //  }

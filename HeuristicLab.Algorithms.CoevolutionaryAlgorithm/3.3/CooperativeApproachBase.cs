@@ -252,10 +252,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       get { return (DoubleMatrix)Results["Algorithm1 Qualities"].Value; }
       set { Results["Algorithm1 Qualities"].Value = value; }
     }
-    public DoubleMatrix ResultsElitesAlg1 {
-      get { return (DoubleMatrix)Results["Algorithm1 Elites"].Value; }
-      set { Results["Algorithm1 Elites"].Value = value; }
-    }
+    //public DoubleMatrix ResultsElitesAlg1 {
+    //  get { return (DoubleMatrix)Results["Algorithm1 Elites"].Value; }
+    //  set { Results["Algorithm1 Elites"].Value = value; }
+    //}
     public DataTable ResultsQualitiesAlg1Table {
       get { return ((DataTable)Results["Algorithm1 Timetable Qualities"].Value); }
     }
@@ -301,10 +301,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       get { return (DoubleMatrix)Results["Algorithm2 Pareto Front"].Value; }
       set { Results["Algorithm2 Pareto Front"].Value = value; }
     }
-    public double ResultsHypervolumeAlg2 {
-      get { return ((DoubleValue)Results["Hypervolume for Algorithm2"].Value).Value; }
-      set { ((DoubleValue)Results["Hypervolume for Algorithm2"].Value).Value = value; }
-    }
+    
     public ScatterPlot ResultsScatterPlot {
       get { return (ScatterPlot)Results["Pareto Front Analysis"].Value; }
       set { Results["Pareto Front Analysis"].Value = value; }
@@ -346,7 +343,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2PopulationSize", "The size of the population of solutions.", new IntValue(500)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg1MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
-      Parameters.Add(new FixedValueParameter<IntValue>("Alg1MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(500000)));
+      Parameters.Add(new FixedValueParameter<IntValue>("Alg1MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(100000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(500000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Maximum Runtime", "The maximum runtime in seconds after which the algorithm stops. Use -1 to specify no limit for the runtime", new IntValue(3600)));
       Parameters.Add(new FixedValueParameter<IntValue>("MaxTreeLength", "The maximum tree length for expression trees.", new IntValue(25)));
@@ -405,7 +402,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       ResultsParetoFrontAlg2 = new DoubleMatrix(Alg2PopulationSize, numColumns);
       //ResultsQualitiesAlg1 = new DoubleMatrix(Alg1PopulationSize, numColumns + 1);
       ResultsQualitiesAlg1 = new DoubleMatrix(Alg1PopulationSize, numColumns + 1);
-      ResultsElitesAlg1 = new DoubleMatrix(11, numColumns + 1);
+      //ResultsElitesAlg1 = new DoubleMatrix(11, numColumns + 1);
 
       ScatterPlot scatterPlot = new ScatterPlot("Quality vs Tree Size", "");
       scatterPlot.VisualProperties.XAxisTitle = "Tree Size";
@@ -490,7 +487,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
     //Analyzers
     public void GAAnalyzer() {
-
       ISymbolicExpressionTree treeGA = (ISymbolicExpressionTree)alg1.Elite.Solution.Clone();
 
       if (alg1.Elite != null) {
@@ -508,12 +504,12 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       ResultsQualitiesAlg1 = alg1.CalculateDoubleMatrix();
       ResultsAlg1Iterations++;
 
-      for (int i = 0; i < alg1.Elites.Count; i++) {
-        var qualities = alg1.Elites[i].Quality.ToArray();
-        for (int j = 0; j < alg1QualityLength; j++) {
-          ResultsElitesAlg1[i, j] = qualities[j];
-        }
-      }
+      //for (int i = 0; i < alg1.Elites.Count; i++) {
+      //  var qualities = alg1.Elites[i].Quality.ToArray();
+      //  for (int j = 0; j < alg1QualityLength; j++) {
+      //    ResultsElitesAlg1[i, j] = qualities[j];
+      //  }
+      //}
 
     }
     public void NSGA2Analyzer() {
@@ -522,11 +518,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       //if (maximization) {
       //  if ((ResultsBestQualityAlg2.Count() != 0 && bestQlty > ResultsBestQualityAlg2[0]) || (ResultsBestQualityAlg2.Count() == 0)) {
-      //    pauseNSGA2 = true;
+      //    pauseAlg2 = true;
       //  }
       //} else {
       //  if ((ResultsBestQualityAlg2.Count() != 0 && bestQlty < ResultsBestQualityAlg2[0]) || (ResultsBestQualityAlg2.Count() == 0)) {
-      //    pauseNSGA2 = true;
+      //    pauseAlg2 = true;
       //  }
       //}
 
@@ -550,29 +546,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         var nonDominatedQuality = new DoubleArray(individual.Quality);
         ResultsBestQualitiesAlg2.Add(nonDominatedQuality);
       }
-      double[] refPoints;
-      bool maximization = Problem.Maximization[0];
-      bool[] maximizationArray;
-      if (maximization) {
-        refPoints = new double[] { 0.0, MaxTreeLength };
-        maximizationArray = new bool[] { true, false };
-      } else {
-        refPoints = new double[] { 1.0, MaxTreeLength };
-        maximizationArray = new bool[] { false, false };
-      }
-
-      List<double[]> nsga2ParetoFrontQualities = new List<double[]>();
-
-      if (alg2.CurrentFronts[0].Count > 0) {
-        foreach (var ind in alg2.CurrentFronts[0]) {
-          nsga2ParetoFrontQualities.Add(ind.Quality.ToArray());
-        }
-      }
-      //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
-
-      var nsga2Hypervolume = HypervolumeCalculation.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
       
-      ResultsHypervolumeAlg2 = nsga2Hypervolume;
 
       AnalyzeParetoFront();
       ResultsAlg2Iterations++;

@@ -41,30 +41,21 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       return new IndividualGA(this, cloner);
     }
     #endregion
-    public double[] EvaluateSingleObjective(IRandom random, CooperativeProblem problem) {
-      bool maximization = problem.Maximization[0];
-      if (maximization) {
-        Quality[0] = problem.EvaluateSingleObjectivePearsonRsquaredError(Solution, random);
-      } else {
-        Quality[0] = problem.EvaluateSingleObjectiveNormalizedMeanSquaredError(Solution, random);
-        //Quality[0] = problem.EvaluateSingleObjectiveMeanSquaredError(Solution, random);
-      }
-      
-      return Quality;
-    }
     public override double[] Evaluate(IRandom random, CooperativeProblem problem) {
-      bool maximization = problem.Maximization[0];
-      double[] qlty;
-      if (maximization) {
-        qlty = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
-      } else {
-        qlty = problem.EvaluateUnconstrainedMultiObjectiveProblem(Solution, random);
-      }
+      //bool maximization = problem.Maximization[0];
+      var qlty = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
+      
+      //if (maximization) {
+        
+      //} else {
+      //  qlty = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
+      //  //qlty = problem.EvaluateUnconstrainedMultiObjectiveProblem(Solution, random);
+      //}
 
 
       Quality[0] = qlty[0];
       Quality[1] = qlty[1];
-      NormalizedTreeLength = (double)(qlty[1] - 1) / (problem.SymbolicExpressionTreeMaximumLength - 1);
+      NormalizedTreeLength = (double)(qlty[1] - 1.0) / (problem.SymbolicExpressionTreeMaximumLength - 1.0);
       var f1 = Weight[0] * Math.Abs(qlty[0]);
       var f2 = Weight[1] * Math.Abs(NormalizedTreeLength);
       Quality[2] = Math.Max(f1, f2);
