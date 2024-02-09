@@ -106,10 +106,14 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AdaptiveEpsilonLexicaseSelection.cs" />
+    <Compile Include="BaseAlg.cs" />
     <Compile Include="BestSelection.cs" />
+    <Compile Include="CooperativeApproachBase.cs" />
     <Compile Include="CrowdedTournamentSelection.cs" />
     <Compile Include="DasAndDennisRefrences.cs" />
-    <Compile Include="GA.cs" />
+    <Compile Include="DecompositionBasedGA.cs" />
+    <Compile Include="EpsilonLexicaseSelection.cs" />
     <Compile Include="GeneralizedRankSelection.cs" />
     <Compile Include="GeneralizedRankSelection3.cs" />
     <Compile Include="GeneralizedRankSelection4.cs" />
@@ -121,13 +125,17 @@
     <Compile Include="IndividualNSGA2.cs" />
     <Compile Include="ISelectionStrategy.cs" />
     <Compile Include="NSGA2.cs" />
+    <Compile Include="Orchestrator.cs" />
     <Compile Include="PercentageTournamentSelection.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProportionalSelection.cs" />
     <Compile Include="RandomSelection.cs" />
     <Compile Include="RankAndCrowdingSort.cs" />
+    <Compile Include="RunInSeparation.cs" />
     <Compile Include="SelectionStrategy.cs" />
+    <Compile Include="SingleObjectiveGA.cs" />
+    <Compile Include="SingleObjectiveIndividual.cs" />
     <Compile Include="TournamentSelection.cs" />
     <Compile Include="TournamentSelection3.cs" />
     <Compile Include="TournamentSelection4.cs" />

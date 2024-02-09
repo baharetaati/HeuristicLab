@@ -13,7 +13,7 @@ using HeuristicLab.Problems.CooperativeProblem;
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [Item("TournamentSelection", "A tournament selection operator which considers a single double quality value for selection (GroupSize of two).")]
   [StorableType("6ADD4CA5-DC43-42FA-A808-0FED2FBEF0FA")]
-  public class TournamentSelection : SelectionStrategy {
+  public class TournamentSelection : SelectionStrategy<double> {
     #region Properties
     [Storable]
     public int GroupSize { get; private set; }
@@ -44,7 +44,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       int newGroupSize = (int)(0.1 * populationSize);
       GroupSize = newGroupSize;
     }
-    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, CooperativeProblem problem) {
+    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, bool maximization) {
       
       int count = qualities.Count;
       if (UsePercentageGroupSize) {
@@ -52,8 +52,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           SetGroupSize(count);
         }
       }
-
-      bool maximization = problem.Maximization[0];
+      
       List<int> selected = new List<int>();
       if (qualities.Any(q => !IsValidQuality(q))) {
         throw new ArgumentException("The qualities list contains invalid quality values (either infinity or double.NaN) on which the selector cannot operate.");

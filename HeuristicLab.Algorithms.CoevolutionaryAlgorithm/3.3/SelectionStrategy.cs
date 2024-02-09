@@ -11,18 +11,18 @@ using HeuristicLab.Problems.CooperativeProblem;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("8CE5FDC1-E9C9-4532-8D08-93794430A385")]
-  public abstract class SelectionStrategy : Item, ISelectionStrategy {
+  public abstract class SelectionStrategy<T> : Item, ISelectionStrategy<T> {
     #region Constructors and Cloning
     [StorableConstructor]
     protected SelectionStrategy(StorableConstructorFlag _) { }
     public SelectionStrategy() : base() { }
-    protected SelectionStrategy(SelectionStrategy other, Cloner cloner) : base(other, cloner) {
+    protected SelectionStrategy(SelectionStrategy<T> other, Cloner cloner) : base(other, cloner) {
 
     }
     #endregion
     public bool IsValidQuality(double quality) {
       return !double.IsNaN(quality) && !double.IsInfinity(quality);
     }
-    public abstract List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, CooperativeProblem problem);
+    public abstract List<int> Select(int numSelectedIndividuals, IRandom rand, List<T> qualities, bool maximization);
   }
 }

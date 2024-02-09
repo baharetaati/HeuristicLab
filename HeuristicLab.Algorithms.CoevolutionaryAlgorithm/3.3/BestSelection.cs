@@ -14,7 +14,7 @@ using HeuristicLab.Problems.CooperativeProblem;
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [Item("BestSelection", "A selection operator which selects the best quality values")]
   [StorableType("E663EFA7-A7F9-4858-A407-AA15187ED083")]
-  public class BestSelection : SelectionStrategy {
+  public class BestSelection : SelectionStrategy<double> {
     #region Constructors and Cloning
     [StorableConstructor]
     protected BestSelection(StorableConstructorFlag _) : base(_) { }
@@ -26,9 +26,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       return new BestSelection(this, cloner);
     }
     #endregion
-    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, CooperativeProblem problem) {
+    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, bool maximization) {
       Console.WriteLine("BestSelection is performed");
-      bool maximization = problem.Maximization[0];
+      //bool maximization = problem.Maximization[0];
       var selected = new List<int>();
 
       // Check if all quality values are valid

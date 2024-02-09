@@ -12,7 +12,7 @@ using HeuristicLab.Problems.CooperativeProblem;
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [Item("RandomSelection", "A random selection operator")]
   [StorableType("0B6AFF23-B0F5-466D-96C6-E9B278A9123B")]
-  public class RandomSelection : SelectionStrategy{
+  public class RandomSelection : SelectionStrategy<double> {
     #region Constructors and Cloning
     [StorableConstructor]
     protected RandomSelection(StorableConstructorFlag _) : base(_) { }
@@ -24,7 +24,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       return new RandomSelection(this, cloner);
     }
     #endregion
-    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, CooperativeProblem problem) {
+    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, bool maximization) {
       Console.WriteLine("RandomSelection is performed");
       var selected = new List<int>();
       var count = qualities.Count;

@@ -17,7 +17,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [Item("ProportionalSelection", "A quality proportional selection operator for symbolic expression trees in a basic algorithm.")]
   [StorableType("239BD90F-DA67-4BA1-9921-E65525880FE4")]
 
-  public class ProportionalSelection : SelectionStrategy{
+  public class ProportionalSelection : SelectionStrategy<double>{
     #region Properties
     [Storable]
     public bool ApplyWindowing { get; private set; }
@@ -43,11 +43,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     }
 
     #endregion
-    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, CooperativeProblem problem) {
+    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, bool maximization) {
       List<int> selected = new List<int>();
       double minQuality = double.MaxValue;
       double maxQuality = double.MinValue;
-      bool maximization = problem.Maximization[0];
+      //bool maximization = problem.Maximization[0];
       foreach (var quality in qualities) {
         if (!IsValidQuality(quality)) throw new ArgumentException("The qualities list contain invalid quality values (either infinity or double.NaN) on which the selector cannot operate.");
         if (quality < minQuality) minQuality = quality;

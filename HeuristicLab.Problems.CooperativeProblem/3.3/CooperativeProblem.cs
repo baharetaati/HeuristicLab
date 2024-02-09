@@ -30,7 +30,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
     private const double PercentageOfRows = 1.0;
     private const double ThersholdForFirstObjective = .1;
     private const double penaltyFactor = 0.0;
-    private const int InitialMaximumTreeDepth = 20;
+    private const int InitialMaximumTreeDepth = 8;
     private const int InitialMaximumTreeLength = 25;
     private const double MinNormalizedTreeLengthValue = 0.0;
     private const double MaxNormalizedTreeLengthValue = 1.0;
@@ -49,7 +49,6 @@ namespace HeuristicLab.Problems.CooperativeProblem {
     public IValueParameter<ISymbolicExpressionTreeCreator> SymbolicExpressionTreeCreatorParameter {
       get { return (IValueParameter<ISymbolicExpressionTreeCreator>)Parameters["SymbolicExpressionTreeCreator"]; }
     }
-
     public IFixedValueParameter<IntValue> NumObjectivesParameter {
       get { return (IFixedValueParameter<IntValue>)Parameters["NumObjectives"]; }
     }
@@ -173,7 +172,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
       double r2 = SymbolicRegressionSingleObjectivePearsonRSquaredEvaluator.Calculate(
         tree, ProblemData, rows, SymbolicExpressionTreeInterpreter, true,
         EstimationLimits.Lower, EstimationLimits.Upper);
-      return r2;
+      return 1-r2;
     }
     public double EvaluateSingleObjectiveNormalizedMeanSquaredError(ISymbolicExpressionTree tree, IRandom random) {
       OnlineCalculatorError errorState;
@@ -187,6 +186,12 @@ namespace HeuristicLab.Problems.CooperativeProblem {
       if (nmse > 1)
         nmse = 1.0;
 
+      //if (nmse == 1.0) {
+      //  Console.WriteLine("nmse == 1.0");
+      //  foreach (var node in tree.IterateNodesBreadth()) {
+      //    Console.WriteLine($"{node.Symbol.Name}");
+      //  }
+      //}
       return nmse;
     }
     public double EvaluateSingleObjectiveMeanSquaredError(ISymbolicExpressionTree tree, IRandom random) {
@@ -385,7 +390,7 @@ namespace HeuristicLab.Problems.CooperativeProblem {
         tree, ProblemData, rows, SymbolicExpressionTreeInterpreter, true,
         EstimationLimits.Lower, EstimationLimits.Upper);
 
-      return new double[2] { 1-r2, tree.Length };
+      return new double[2] { r2, tree.Length };
     }
     public void UpdateWeights(double w1, double w2) {
       Weights = new DoubleArray(new[] { w1, w2 });

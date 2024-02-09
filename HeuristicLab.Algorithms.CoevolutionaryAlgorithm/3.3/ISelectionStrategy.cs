@@ -11,7 +11,7 @@ using HeuristicLab.Problems.CooperativeProblem;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("32F2D4F7-C065-4053-B973-3FEA3022A21F")]
-  public interface ISelectionStrategy : IItem {
-    List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, CooperativeProblem problem);
+  public interface ISelectionStrategy<T> : IItem {
+    List<int> Select(int numSelectedIndividuals, IRandom rand, List<T> qualities, bool maximization);
   }
 }

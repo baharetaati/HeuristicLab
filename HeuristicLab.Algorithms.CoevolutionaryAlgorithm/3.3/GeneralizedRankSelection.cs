@@ -12,7 +12,7 @@ using HeuristicLab.Problems.CooperativeProblem;
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [Item("GeneralizedRankSelection", "The generalized rank selection operator selects qualities by rank with a varying focus on better qualities.")]
   [StorableType("C828B056-DCCC-4F9A-B062-CE1F666E6235")]
-  public class GeneralizedRankSelection : SelectionStrategy {
+  public class GeneralizedRankSelection : SelectionStrategy<double> {
     #region Properties
     [Storable]
     public double SelectionPressure { get; private set; }
@@ -32,8 +32,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       return new GeneralizedRankSelection(this, cloner);
     }
     #endregion
-    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, CooperativeProblem problem) {
-      bool maximization = problem.Maximization[0];
+    public override List<int> Select(int numSelectedIndividuals, IRandom rand, List<double> qualities, bool maximization) {
+      //bool maximization = problem.Maximization[0];
       var selected = new List<int>();
 
       // Check if all quality values are valid

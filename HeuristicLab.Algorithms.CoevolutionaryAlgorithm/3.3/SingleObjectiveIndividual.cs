@@ -1,71 +1,46 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
 using HEAL.Attic;
 using HeuristicLab.Common;
 using HeuristicLab.Core;
 using HeuristicLab.Encodings.SymbolicExpressionTreeEncoding;
-using HeuristicLab.Optimization;
-using HeuristicLab.Problems.CooperativeProblem.Interfaces;
 using HeuristicLab.Problems.CooperativeProblem;
-using HeuristicLab.Problems.DataAnalysis.Symbolic;
-using HeuristicLab.Random;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
-  [StorableType("A3C4170D-CB7D-4E31-957A-FFC7078DA739")]
-  public abstract class Individual : DeepCloneable {
+  public class SingleObjectiveIndividual : DeepCloneable {
     #region Properties
     [Storable]
-    private readonly TreeRequirements _treeRequirements ;
+    public double Quality;
     [Storable]
-    public double[] Quality { get; set; }
+    private readonly TreeRequirements _treeRequirements;
     [Storable]
-    public bool BeingCommunicated { get; set; }
-    [Storable]
-    public bool BeingEffective { get; set; }
-    [Storable]
-    public ISymbolicExpressionTree Solution{ get; set;}
+    public ISymbolicExpressionTree Solution { get; set; }
     #endregion
 
     #region Constructors and Cloning
-    
-    [StorableConstructor]
-    protected Individual(StorableConstructorFlag _) { }
-    //Recreating the individual of NSGA2
-    public Individual(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality) {
-      _treeRequirements = treeRequirements;
-      Solution = solution;
-      Quality = quality;
-      BeingCommunicated = false;
-      BeingEffective = false;
 
-    }
-    //Offspring creation
-    public Individual(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, int qualityLength) {
+    [StorableConstructor]
+    protected SingleObjectiveIndividual(StorableConstructorFlag _) { }
+    public SingleObjectiveIndividual(TreeRequirements treeRequirements, ISymbolicExpressionTree solution) {
+      Quality = -1.0;
       _treeRequirements = treeRequirements;
       Solution = solution;
-      Quality = new double[qualityLength];
-      BeingCommunicated = false;
-      BeingEffective = false;
     }
-    //Initializing solutions
-    public Individual(TreeRequirements treeRequirements, int qualityLength, CooperativeProblem problem, IRandom random) {
+    public SingleObjectiveIndividual(TreeRequirements treeRequirements, CooperativeProblem problem, IRandom random) {
+      Quality = -1.0;
       _treeRequirements = treeRequirements;
-      Quality = new double[qualityLength];
-      BeingCommunicated = false;
-      BeingEffective = false;
       Initialize(random, problem);
     }
-    protected Individual(Individual original, Cloner cloner):base(original, cloner) { 
+    protected SingleObjectiveIndividual(SingleObjectiveIndividual original, Cloner cloner) {
+      Quality= original.Quality;
       _treeRequirements = cloner.Clone(original._treeRequirements);
       Solution = cloner.Clone(original.Solution);
-      Quality = original.Quality.ToArray();
-      BeingCommunicated = original.BeingCommunicated;
-      BeingEffective = original.BeingEffective;
+    }
+    public override IDeepCloneable Clone(Cloner cloner) {
+      return new SingleObjectiveIndividual(this, cloner);
     }
     #endregion
     public void Initialize(IRandom random, CooperativeProblem problem) {
@@ -78,6 +53,18 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       }
       Console.WriteLine("Initialize is running without any problems");
       Solution = problem.SymbolicExpressionTreeCreator.CreateTree(random, problem.SymbolicExpressionTreeGrammar, _treeRequirements.MaxTreeLength, _treeRequirements.MaxTreeDepth);
+    }
+    public double Evaluate(IRandom random, CooperativeProblem problem) {
+      bool maximization = problem.Maximization[0];
+      if (maximization) {
+        Quality = problem.EvaluateSingleObjectivePearsonRsquaredError(Solution, random);
+      } else {
+        //Quality = problem.EvaluateSingleObjectiveNormalizedMeanSquaredError(Solution, random);
+        Quality = problem.EvaluateSingleObjectivePearsonRsquaredError(Solution, random);
+
+      }
+
+      return Quality;
     }
     public void Mutate(ISymbolicExpressionTreeManipulator chosenManipulator, IRandom random) {
       if (chosenManipulator is ChangeNodeTypeManipulation) {
@@ -102,6 +89,5 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       } else
         throw new NotImplementedException("The specific manipulator " + chosenManipulator.GetType() + "can not be used in BasicAlgorithms yet");
     }
-    public abstract double[] Evaluate(IRandom random, CooperativeProblem problem);
   }
 }

@@ -58,13 +58,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public void SetRank(int rank) { this.Rank = rank; }
     public void SetCrowdingDistance(double crowdingDist) { this.CrowdingDistance = crowdingDist; }
     public override double[] Evaluate(IRandom random, CooperativeProblem problem) {
-      if (problem.Maximization[0]) {
+      bool maximization = problem.Maximization[0];
+      if (maximization) {
         Quality = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
       } else {
-        //Quality = problem.EvaluateUnconstrainedMultiObjectiveProblem(Solution, random);
-        Quality = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
-        //Quality = problem.EvaluateMultiObjectiveMeanSquaredError(Solution, random);
-        //Quality = problem.EvaluateMultiObjectiveWithComplexity(Solution, random);
+        Quality = problem.EvaluateUnconstrainedMultiObjectiveProblem(Solution, random);
       }
 
       return Quality;

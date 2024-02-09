@@ -16,14 +16,12 @@ using HeuristicLab.Problems.CooperativeProblem;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("74439610-BEAF-4BEE-97BD-E7F16B2F95C9")]
-  public class NSGA2 : DeepCloneable {
+  public class NSGA2 : BaseAlg {
     #region Properties
     [Storable]
     CrowdedTournamentSelection selector;
     [Storable]
     RankAndCrowdingSort sorter;
-    [Storable]
-    private readonly TreeRequirements _treeRequirements;
     [Storable]
     public List<IndividualNSGA2> Population { get; set; } 
     [Storable]
@@ -40,13 +38,12 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
     #region Constructors
     [StorableConstructor]
-    protected NSGA2(StorableConstructorFlag _) { }
-    public NSGA2(int qualityLength, TreeRequirements treeRequirements) {
+    protected NSGA2(StorableConstructorFlag _):base(_) { }
+    public NSGA2(int qualityLength, TreeRequirements treeRequirements):base(treeRequirements) {
       QualityLength = qualityLength;
       Population = new List<IndividualNSGA2>();
       Fitness = new List<double[]>();
       selector = new CrowdedTournamentSelection();
-      _treeRequirements = treeRequirements;
       sorter = new RankAndCrowdingSort();
       CurrentFronts = new List<List<IndividualNSGA2>>();
       Ranks = new List<int>();
@@ -57,7 +54,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Population = original.Population.Select(cloner.Clone).ToList();
       Fitness = original.Fitness.Select(arr => arr.ToArray()).ToList();
       selector = cloner.Clone(original.selector);
-      _treeRequirements = cloner.Clone(original._treeRequirements);
       sorter = cloner.Clone(original.sorter);
       CurrentFronts = original.CurrentFronts != null ? original.CurrentFronts.Select(front => front.Select(individual => cloner.Clone(individual)).ToList()).ToList() : null;
       Ranks = original.Ranks.ToList();
@@ -199,11 +195,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       }
       return selectedParents;
     }
-    private ISymbolicExpressionTree Crossover(ISymbolicExpressionTree parent1, ISymbolicExpressionTree parent2, IRandom random) {
-      var crossOver = new SubtreeCrossover();
-      var childTree = SubtreeCrossover.Cross(random, parent1, parent2, crossOver.CrossoverProbability, crossOver.InternalCrossoverPointProbability.Value, _treeRequirements.MaxTreeLength, _treeRequirements.MaxTreeDepth);
-      return childTree;
-    }
     public int Apply(int populationSize, int numSelectedIndividuals, CooperativeProblem problem, int iterationNum, IRandom random) {
       var countEvaluations = 0;
       if (iterationNum == 0) {
@@ -218,7 +209,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       var selectedParents = Selection(random, numSelectedIndividuals);
       List<IndividualNSGA2> offspring = new List<IndividualNSGA2>();
       for (int i = 0; i < selectedParents.Count; i += 2) {
-        var childTree = Crossover(selectedParents[i].Solution, selectedParents[i + 1].Solution, random);
+        var childTree = Crossover((ISymbolicExpressionTree)selectedParents[i].Solution.Clone(), (ISymbolicExpressionTree)selectedParents[i + 1].Solution.Clone(), random);
         var child = new IndividualNSGA2(_treeRequirements, childTree, QualityLength);
         int randomIndex = random.Next(_treeRequirements.Manipulators.Count); // Generate a random index
 
