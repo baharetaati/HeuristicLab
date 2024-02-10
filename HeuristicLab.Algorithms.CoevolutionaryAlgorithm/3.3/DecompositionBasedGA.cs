@@ -92,6 +92,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       int numInitialSegments = 10;
       var referenceVectors = DasAndDennisRefrences.InitializeReferenceVectors(problem.NumObjectives, numInitialSegments, random);
       Weights = referenceVectors.Select(vector => vector.ToArray()).ToList();
+      foreach (var w in Weights) {
+        Console.WriteLine($"w[0]={w[0]} w[1]={w[1]}");
+      }
       var initialWeightsCount = Weights.Count;
       int countPerWeight = popSize / initialWeightsCount;
       for (int i = 0; i < initialWeightsCount; i++) {
@@ -124,6 +127,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       }
      
       return fit;
+    }
+    public void SetWeight(double[] weight, int index) {
+      if (index >= 0 && index < Weights.Count){
+        Weights[index] = weight;
+      }
     }
     private int FindElitesIndex(List<double[]> fit, bool maximization) {
       List<double[]> tempFit = new List<double[]>();

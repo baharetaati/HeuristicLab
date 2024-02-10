@@ -68,7 +68,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       }
       quickHull(initialVectors, numInitialVectors, initialVectors[min_x], initialVectors[max_x], 1);
       quickHull(initialVectors, numInitialVectors, initialVectors[min_x], initialVectors[max_x], -1);
-      Console.WriteLine("quickHull is performed");
+      //Console.WriteLine("quickHull is performed");
       return hull;
     }
     static int CalculateCombination(int n, int k) {

@@ -62,6 +62,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       return Quality;
     }
-    
+ 
   }
 }

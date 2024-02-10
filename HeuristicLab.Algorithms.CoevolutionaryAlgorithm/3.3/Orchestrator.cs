@@ -23,10 +23,14 @@ using HeuristicLab.Problems.DataAnalysis;
 using HeuristicLab.Problems.DataAnalysis.Symbolic.Regression;
 using HeuristicLab.Problems.TestFunctions.MultiObjective;
 using HeuristicLab.PluginInfrastructure;
+using HeuristicLab.Encodings.RealVectorEncoding;
+using System.Net.Mime;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("5EF90076-0721-4503-B60A-6417CDAEEADA")]
   public abstract class Orchestrator : CooperativeApproachBase{
+    const double Epsilon = 1e-6;
+    static readonly double[] IdealPoint = new double[] { 0.0, 1.0 };
     #region Results Properties
     public ItemList<IntValue> ResultsAlg1RunIntervalInGenerations {
       get { return (ItemList<IntValue>)Results["Algorithm1 Run Interval Generations"].Value; }
@@ -47,7 +51,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       get { return ResultsHypervolumeData.Rows["Algorithm2 Hypervolume Without Algorithm1 Contribution"]; }
     }
     public DataRow ResultsAlg2HypervolumeWithGAContributionRow {
-      get { return ResultsHypervolumeData.Rows["Algorithm2 Hypervolume With DecompositionBasedGA Contribution"]; }
+      get { return ResultsHypervolumeData.Rows["Algorithm2 Hypervolume With Algorithm1 Contribution"]; }
     }
     public ItemList<IntValue> ResultsAlg2RunIntervalInGenerations {
       get { return (ItemList<IntValue>)Results["Algorithm2 Run Interval Generations"].Value; }
@@ -78,6 +82,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     #endregion
     public override void InitResults() {
       base.InitResults();
+      Results.Add(new Result("Hypervolume for Algorithm2", "Current hypervolume for NSGA2", new DoubleValue(0.0)));
       Results.Add(new Result("Hypervolume for Algorithm2 With Algorithm1 Contribution", "NSGA2 hypervolume with Algorithm1 contribution", new DoubleValue(0.0)));
       Results.Add(new Result("Algorithm1 Run Interval Generations", "Algorithm1 Generation Interval", new ItemList<IntValue>()));
       Results.Add(new Result("Algorithm2 Run Interval Generations", "Algorithm2 Generation Interval", new ItemList<IntValue>()));
@@ -90,7 +95,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       nsga2HypervolumeRow.VisualProperties.Color = Color.BlueViolet;
       tableHypervolume.Rows.Add(nsga2HypervolumeRow);
 
-      var nsag2GAHypervolumeRow = new DataRow("NSGA2 Hypervolume With Algorithm1 Contribution");
+      var nsag2GAHypervolumeRow = new DataRow("Algorithm2 Hypervolume With Algorithm1 Contribution");
       nsag2GAHypervolumeRow.VisualProperties.LineStyle = DataRowVisualProperties.DataRowLineStyle.DashDotDot;
       nsag2GAHypervolumeRow.VisualProperties.LineWidth = 3;
       nsag2GAHypervolumeRow.VisualProperties.Color = Color.DeepPink;
@@ -158,7 +163,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
 
         var nsga2Hypervolume = HypervolumeCalculation.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
-
+        
         
         if (nsga2Interval > 5 && nsga2Hypervolume > ResultsHypervolumeAlg2 && ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions && ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
           ResultsAlg2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
@@ -166,19 +171,58 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           pauseAlg2 = true;
           gaInterval = 0;
           if (ResultsAlg1Iterations != 0) {
-            AdjustWeights();
+            AdjustWeights(nsga2ParetoFrontQualities);
           }
           
         }
         ResultsHypervolumeAlg2 = nsga2Hypervolume;
+        ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(nsga2Hypervolume);
+        ResultsAlg2HypervolumeWithGAContributionRow.Values.Add(ResultsHypervolumeAlg2WithGAContribution);
       } else {
         GAAnalyzer();
         CommunicationGAToNSGA2();
       }
       
     }
-    private void AdjustWeights() {
+    private void AdjustWeights(List<double[]> paretoFront) {
+      List<double[]> gaElites = new List<double[]>();
+      int numObjectives = Problem.NumObjectives;
+      foreach (var elite in alg1.Elites) {
+        gaElites.Add(elite.Quality.Take(numObjectives).ToArray());
+      }
+      if (paretoFront.Count > 0) {
+        double[] sparsityLevel = new double[paretoFront.Count];
+        List<double[]> distances = new List<double[]>();
+        for (int i = 0; i < paretoFront.Count; i++) {
+          double[] paretoPoint = paretoFront[i];
+          double sl = 1.0;
+          double[] paretoDist = new double[gaElites.Count];
+          for (int j = 0; j < gaElites.Count; j++) {
+            double[] gaElite = gaElites[j];
+            double dist = Math.Sqrt((gaElite[0] - paretoPoint[0]) * (gaElite[0] - paretoPoint[0]) + (gaElite[1] - paretoPoint[1]) * (gaElite[1] - paretoPoint[1]));
+            sl *= dist;
+            paretoDist[j] = dist;
+          }
+          distances.Add(paretoDist);
+          sparsityLevel[i] = sl;
+        }
+        double minValue = sparsityLevel.Min();
+        int sparsePointIndex = Array.IndexOf(sparsityLevel, minValue);
+        double[] sdist = distances[sparsePointIndex];
+        minValue = sdist.Min();
+        int nearestEliteIndex = Array.IndexOf(sdist, minValue);
 
+        double[] weight = new double[numObjectives];
+        double sum = 0.0;
+        for (int i = 0; i < numObjectives; i++) {
+          sum += 1.0 / (double)(paretoFront[sparsePointIndex][i] - IdealPoint[i]+Epsilon);
+        }
+        for (int i = 0; i < numObjectives; i++) {
+          weight[i] = (double)(1.0 / paretoFront[sparsePointIndex][i] - IdealPoint[i] + Epsilon) / sum;
+        }
+        Console.WriteLine($"weight[0]={weight[0]}, weight[1]={weight[1]}");
+        alg1.SetWeight(weight, nearestEliteIndex);
+      }
     }
     private void CommunicationGAToNSGA2() {
       //if (pauseAlg2) {
@@ -259,6 +303,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
         var nsga2HypervolumeIncludingGASolutions = HypervolumeCalculation.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
         ResultsHypervolumeAlg2WithGAContribution = nsga2HypervolumeIncludingGASolutions;
+        ResultsAlg2HypervolumeWithGAContributionRow.Values.Add(nsga2HypervolumeIncludingGASolutions);
+        ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(ResultsHypervolumeAlg2);
         alg2.AppendToNSGA2Population(alg1.Elites, Problem, Alg2PopulationSize);
         AnalyzeParetoFrontWhileCommunication(gaBestQualities, gaContributionParetoFront);
         if (gaInterval > 5 && ResultsHypervolumeAlg2WithGAContribution > ResultsHypervolumeAlg2 && ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions && ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) {

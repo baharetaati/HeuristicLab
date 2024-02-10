@@ -384,7 +384,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Results.Add(new Result("Best Qualities for Algorithm2", "The best qualities found by NSGA2", new ItemList<DoubleArray>()));
       //Results.Add(new Result("Best Solution for NSGA2", "The best so-far solution found by NSGA2", (IItem)null));
       //Results.Add(new Result("Best Quality for NSGA2", "The best so-far quality found by NSGA2", new DoubleArray()));
-      Results.Add(new Result("Hypervolume for Algorithm2", "Current hypervolume for NSGA2", new DoubleValue(0.0)));
+      
       Results.Add(new Result("Algorithm2 Pareto Front", "Current NSGA2 pareto front", new DoubleMatrix()));
 
       var table = new DataTable("Algorithm1 Timetable Qualities");
