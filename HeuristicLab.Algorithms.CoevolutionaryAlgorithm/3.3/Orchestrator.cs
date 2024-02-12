@@ -228,7 +228,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       //if (pauseAlg2) {
       // Scenario two: Considering the best error values
       //var gaBestSolutions = GABestErrorSelection();
+      bool[] maximizationArray = Problem.Maximization;
+      bool maximization = Problem.Maximization[0];
       var gaBestQualities = new List<double[]>();
+      var numObjectives = Problem.NumObjectives;
       //if (gaBestSolutions.Count > 0) {
       //  foreach (var individual in gaBestSolutions) {
       //    double[] indQualities = individual.Quality.Take(Problem.NumObjectives).ToArray();
@@ -237,7 +240,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       //}
       if (alg1.Elites.Count > 0) {
         foreach (var individual in alg1.Elites) {
-          double[] indQualities = individual.Quality.Take(Problem.NumObjectives).ToArray();
+          double[] indQualities = individual.Quality.Take(numObjectives).ToArray();
           gaBestQualities.Add(indQualities);
         }
       }
@@ -280,7 +283,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           }
         }
         if (!isDominated) {
-          nsga2ParetoFrontQualities.Add(gaBestQualities[i].ToArray());
           gaContributionParetoFront.Add(gaBestQualities[i].ToArray());
           gaBestQualities.RemoveAt(i);
           //gaBestQualities[i] = null;
@@ -288,10 +290,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           gaContribution++;
         }
       }
-      var maximization = Problem.Maximization[0];
       if (gaContribution > 0) {
         double[] refPoints;
-        bool[] maximizationArray;
+        
         if (maximization) {
           refPoints = new double[] { 0.0, MaxTreeLength };
           maximizationArray = new bool[] { true, false };
