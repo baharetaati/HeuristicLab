@@ -13,6 +13,7 @@ using HeuristicLab.Problems.CooperativeProblem;
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("77A598F7-5523-4740-B12F-2802577C422B")]
   public class IndividualGA : Individual {
+    const double MinTreeLength = 1.0;
     [Storable]
     public double[] Weight { get; set; }
     [Storable]
@@ -55,7 +56,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       Quality[0] = qlty[0];
       Quality[1] = qlty[1];
-      NormalizedTreeLength = (double)(qlty[1] - 1.0) / (problem.SymbolicExpressionTreeMaximumLength - 1.0);
+      NormalizedTreeLength = (double)(qlty[1] - MinTreeLength) / (problem.SymbolicExpressionTreeMaximumLength - MinTreeLength);
       var f1 = Weight[0] * Math.Abs(qlty[0]);
       var f2 = Weight[1] * Math.Abs(NormalizedTreeLength);
       Quality[2] = Math.Max(f1, f2);

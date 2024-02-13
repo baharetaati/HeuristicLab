@@ -109,9 +109,10 @@
     <Compile Include="AdaptiveEpsilonLexicaseSelection.cs" />
     <Compile Include="BaseAlg.cs" />
     <Compile Include="BestSelection.cs" />
+    <Compile Include="BigInteger.cs" />
     <Compile Include="CooperativeApproachBase.cs" />
     <Compile Include="CrowdedTournamentSelection.cs" />
-    <Compile Include="DasAndDennisRefrences.cs" />
+    <Compile Include="DasAndDennisTechnique.cs" />
     <Compile Include="DecompositionBasedGA.cs" />
     <Compile Include="EpsilonLexicaseSelection.cs" />
     <Compile Include="GeneralizedRankSelection.cs" />

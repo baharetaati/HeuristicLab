@@ -339,11 +339,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public CooperativeApproachBase() {
       Parameters.Add(new FixedValueParameter<IntValue>("Seed", "The random seed used to initialize the new pseudo random number generator.", new IntValue(0)));
       Parameters.Add(new FixedValueParameter<BoolValue>("SetSeedRandomly", "True if the random seed should be set to a random value, otherwise false.", new BoolValue(true)));
-      Parameters.Add(new FixedValueParameter<IntValue>("Alg1PopulationSize", "The size of the population of solutions.", new IntValue(100)));
+      Parameters.Add(new FixedValueParameter<IntValue>("Alg1PopulationSize", "The size of the population of solutions.", new IntValue(500)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2PopulationSize", "The size of the population of solutions.", new IntValue(500)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg1MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
-      Parameters.Add(new FixedValueParameter<IntValue>("Alg1MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(100000)));
+      Parameters.Add(new FixedValueParameter<IntValue>("Alg1MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(500000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2MaximumEvaluatedSolutions", "The maximum number of solutions which should be evaluated.", new IntValue(500000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Maximum Runtime", "The maximum runtime in seconds after which the algorithm stops. Use -1 to specify no limit for the runtime", new IntValue(3600)));
       Parameters.Add(new FixedValueParameter<IntValue>("MaxTreeLength", "The maximum tree length for expression trees.", new IntValue(25)));

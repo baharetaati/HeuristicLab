@@ -30,7 +30,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("5EF90076-0721-4503-B60A-6417CDAEEADA")]
   public abstract class Orchestrator : CooperativeApproachBase{
     const double Epsilon = 1e-6;
-    static readonly double[] IdealPoint = new double[] { 0.0, 1.0 };
+    const double MinTreeLength = 1.0;
+    static readonly double[] IdealPoint = new double[] { 0.0, 0.0 };
     #region Results Properties
     public ItemList<IntValue> ResultsAlg1RunIntervalInGenerations {
       get { return (ItemList<IntValue>)Results["Algorithm1 Run Interval Generations"].Value; }
@@ -117,24 +118,27 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       } else if (pauseAlg2) {
         if (ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) {
           var gaCountEvaluations = 0;
-          int countGAEvaluations;
+          int countGAEvaluations = 0;
           if (ResultsAlg1Iterations == 0) {
             countGAEvaluations = alg1.ApplyForInitialization(random, Alg1PopulationSize, Problem);
           }
           else {
             if (ActiveOffspringSelector) {
-              countGAEvaluations = alg1.ApplyExtremeOffspringSelection(Alg1PopulationSize, Problem, random);
-              ResultsActivePressure = alg1.ActiveSelectionPressure;
-              ResultsCountSuccessfulOffspring = alg1.CountSuccessfulOffspring;
-              ResultsCountUnsuccessfulOffspring = alg1.CountUnsuccessfulOffspring;
+              if (ResultsActivePressure <= 100) {
+                countGAEvaluations = alg1.ApplyStrictOffspringSelection(Alg1PopulationSize, Problem, random);
+                ResultsActivePressure = alg1.ActiveSelectionPressure;
+                ResultsCountSuccessfulOffspring = alg1.CountSuccessfulOffspring;
+                ResultsCountUnsuccessfulOffspring = alg1.CountUnsuccessfulOffspring;
+              } else {
+                pauseAlg2 = false;
+              }
             } else {
               countGAEvaluations = alg1.Apply(Alg1PopulationSize, Problem, random);
             }
+            gaCountEvaluations += countGAEvaluations;
+            ResultsAlg1Evaluations += gaCountEvaluations;
+            gaInterval++;
           }
-          
-          gaCountEvaluations += countGAEvaluations;
-          ResultsAlg1Evaluations += gaCountEvaluations;
-          gaInterval++;
         } else {
           pauseAlg2 = false;
         }
@@ -188,13 +192,24 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       List<double[]> gaElites = new List<double[]>();
       int numObjectives = Problem.NumObjectives;
       foreach (var elite in alg1.Elites) {
-        gaElites.Add(elite.Quality.Take(numObjectives).ToArray());
+        double[] e = new double[numObjectives];
+        e[0] = elite.Quality[0];
+        e[1] = elite.NormalizedTreeLength;
+        gaElites.Add(e);
+        //gaElites.Add(elite.Quality.Take(numObjectives).ToArray());
       }
       if (paretoFront.Count > 0) {
+        var normalizedParetoFront = new List<double[]>();
+        foreach (var point in paretoFront) {
+          double[] pf = new double[numObjectives];
+          pf[0] = point[0];
+          pf[1] = (double)(point[1] - MinTreeLength) / (Problem.SymbolicExpressionTreeMaximumLength - MinTreeLength);
+          normalizedParetoFront.Add(pf);
+        }
         double[] sparsityLevel = new double[paretoFront.Count];
         List<double[]> distances = new List<double[]>();
-        for (int i = 0; i < paretoFront.Count; i++) {
-          double[] paretoPoint = paretoFront[i];
+        for (int i = 0; i < normalizedParetoFront.Count; i++) {
+          double[] paretoPoint = normalizedParetoFront[i];
           double sl = 1.0;
           double[] paretoDist = new double[gaElites.Count];
           for (int j = 0; j < gaElites.Count; j++) {
@@ -206,21 +221,27 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           distances.Add(paretoDist);
           sparsityLevel[i] = sl;
         }
-        double minValue = sparsityLevel.Min();
-        int sparsePointIndex = Array.IndexOf(sparsityLevel, minValue);
+        double maxValue = sparsityLevel.Max();
+        int sparsePointIndex = Array.IndexOf(sparsityLevel, maxValue);
         double[] sdist = distances[sparsePointIndex];
-        minValue = sdist.Min();
+        double minValue = sdist.Min();
         int nearestEliteIndex = Array.IndexOf(sdist, minValue);
 
         double[] weight = new double[numObjectives];
         double sum = 0.0;
         for (int i = 0; i < numObjectives; i++) {
-          sum += 1.0 / (double)(paretoFront[sparsePointIndex][i] - IdealPoint[i]+Epsilon);
+          sum += 1.0 / (double)(normalizedParetoFront[sparsePointIndex][i] - IdealPoint[i]+Epsilon);
         }
         for (int i = 0; i < numObjectives; i++) {
-          weight[i] = (double)(1.0 / paretoFront[sparsePointIndex][i] - IdealPoint[i] + Epsilon) / sum;
+          weight[i] = (double)(1.0 / normalizedParetoFront[sparsePointIndex][i] - IdealPoint[i] + Epsilon) / sum;
+          if (double.IsInfinity(weight[i])) {
+            Console.WriteLine($"sum={sum} sparsePointIndex={sparsePointIndex}");
+            throw new Exception("Weight contains infinity");
+          }
         }
+        
         Console.WriteLine($"weight[0]={weight[0]}, weight[1]={weight[1]}");
+        
         alg1.SetWeight(weight, nearestEliteIndex);
       }
     }

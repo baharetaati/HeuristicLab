@@ -90,7 +90,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     #endregion
     public void Initialization(int popSize, CooperativeProblem problem, IRandom random) {
       int numInitialSegments = 10;
-      var referenceVectors = DasAndDennisRefrences.InitializeReferenceVectors(problem.NumObjectives, numInitialSegments, random);
+      var referenceVectors = DasAndDennisTechnique.GetWeightVectors(numInitialSegments, problem.NumObjectives);
       Weights = referenceVectors.Select(vector => vector.ToArray()).ToList();
       foreach (var w in Weights) {
         Console.WriteLine($"w[0]={w[0]} w[1]={w[1]}");
@@ -157,8 +157,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       List<double> fitnessValues;
      
       fitnessValues = fit.Select(fitness => fitness.Last()).ToList();
-      
-      
+           
       List<int> selectedIndexes = Selector.Select(numSelectedIndividuals, random, fitnessValues, maximization);
       List<IndividualGA> selectedIndividuals = new List<IndividualGA>(numSelectedIndividuals);
       foreach (var index in selectedIndexes) {
@@ -412,7 +411,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
             var qualities = child.Evaluate(random, problem);
             countEvaluations++;
-            bool addToNewPopulation = ComparisonForOffspringSelection(random, selectedParents[k].Quality, selectedParents[k + 1].Quality, qualities, problem.Maximization, adaptiveEps);
+            bool addToNewPopulation = ComparisonForOffspringSelection(random, (IndividualGA) selectedParents[k].Clone(), (IndividualGA) selectedParents[k + 1].Clone(), (IndividualGA) child.Clone(), problem.Maximization, adaptiveEps);
             if (addToNewPopulation) {
               newPop.Add(child);
             } else {
@@ -504,7 +503,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       FindBestWorstAverageQuality(maximization);
       return countEvaluations;
     }
-      public int ApplyExtremeOffspringSelection(int populationSize, CooperativeProblem problem, IRandom random) {
+      public int ApplyStrictOffspringSelection(int populationSize, CooperativeProblem problem, IRandom random) {
       var countEvaluations = 0;
       bool maximization = problem.Maximization[0];
       
@@ -532,6 +531,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         int countBadSelectedParents = 0;
         int countBadOffspring = 0;
         int numSelectedIndividuals = 2 * (countsIndividuals[i] - 1);
+        
         var selectedParents = Selection(fit, Population[i], numSelectedIndividuals, random, maximization);
         foreach (var ind in selectedParents) {
           if (ind.Quality[0] == 1.0) {
@@ -554,7 +554,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
               var qualities = child.Evaluate(random, problem);
               countEvaluations++;
-              bool addToNewPopulation = ComparisonForOffspringSelection(random, selectedParents[k].Quality, selectedParents[k + 1].Quality, qualities, problem.Maximization, adaptiveEps);
+              bool addToNewPopulation = ComparisonForOffspringSelection(random, (IndividualGA) selectedParents[k].Clone(), (IndividualGA) selectedParents[k + 1].Clone(), (IndividualGA) child.Clone(), problem.Maximization, adaptiveEps);
 
               if (addToNewPopulation) {
                 newPop.Add((IndividualGA)child.Clone());
@@ -626,9 +626,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       }
       return convertedFit;
     }
-    public bool ComparisonForOffspringSelection(IRandom random, double[] firstParentQuality, double[] secondParentQuality, double[] childQuality, bool[] maximization, double adaptiveEps) {
+    public bool ComparisonForOffspringSelection(IRandom random,IndividualGA firstParent,IndividualGA secondParent, IndividualGA child, bool[] maximization, double adaptiveEps) {
       bool addToNewPopulation = false;
-      
+      double[] firstParentQuality = firstParent.Quality;
+      double[] secondParentQuality = secondParent.Quality;
+      double[] childQuality = child.Quality;
       switch (OffspringComparisonType) {
         case OffspringParentsComparisonTypes.DominationBaseComparison:
           double[] parent1Quality = firstParentQuality.Take(QualityLength - 1).ToArray();
@@ -696,8 +698,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
             addToNewPopulation = true;
           } else if ((accuracyWiseMaximization && childQuality[0] * (1 + adaptiveEps) > bestParentQuality)
              || (!accuracyWiseMaximization && childQuality[0] < bestParentQuality * (1 + adaptiveEps))) {
-            double bestParentTreeLength = Math.Min(firstParentQuality[1], secondParentQuality[1]);
-            if (childQuality[1] < bestParentTreeLength * (1 + adaptiveEps)) {
+            double bestParentTreeLength = Math.Min(firstParent.NormalizedTreeLength, secondParent.NormalizedTreeLength);
+            if (child.NormalizedTreeLength < bestParentTreeLength) {
               addToNewPopulation = true;
             }
           }

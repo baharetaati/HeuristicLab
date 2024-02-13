@@ -118,7 +118,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
             //  //gaCountEvaluations += countGAEvaluations;
 
             //}
-            countGAEvaluations = alg1.ApplyExtremeOffspringSelection(Alg1PopulationSize, Problem, random);
+            countGAEvaluations = alg1.ApplyStrictOffspringSelection(Alg1PopulationSize, Problem, random);
             ResultsActivePressure = alg1.ActiveSelectionPressure;
             ResultsCountSuccessfulOffspring = alg1.CountSuccessfulOffspring;
             ResultsCountUnsuccessfulOffspring = alg1.CountUnsuccessfulOffspring;
