@@ -24,17 +24,8 @@ using HeuristicLab.Problems.DataAnalysis.Symbolic.Regression;
 using HeuristicLab.Problems.TestFunctions.MultiObjective;
 using HeuristicLab.PluginInfrastructure;
 
-
-
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
-  [StorableType("A73F5D69-BCA6-46A5-95C4-AF57936DFAA1")]
-  public enum OffspringParentsComparisonTypes {
-    DominationBaseComparison,
-    RandomIndexComparison,
-    AccuracyBasedComparison,
-    WeightedBasedComparison,
-    EpsilonLexicaseBasedComparison
-  }
+  [StorableType("A9AB48B7-F416-4FFB-A9B1-231F579411DF")]
   public abstract class CooperativeApproachBase : BasicAlgorithm{
     #region Problem Properties
     public override Type ProblemType {
@@ -59,6 +50,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     private IFixedValueParameter<IntValue> MaxTreeLengthParameter {
       get { return (IFixedValueParameter<IntValue>)Parameters["MaxTreeLength"]; }
     }
+    private IFixedValueParameter<DoubleValue> MinTreeLengthParameter {
+      get { return (IFixedValueParameter<DoubleValue>)Parameters["MinTreeLength"]; }
+    }
     private IFixedValueParameter<IntValue> MaxTreeDepthParameter {
       get { return (IFixedValueParameter<IntValue>)Parameters["MaxTreeDepth"]; }
     }
@@ -77,6 +71,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     // Algorithm 1 Parameters
     private IFixedValueParameter<IntValue> Alg1PopulationSizeParameter {
       get { return (IFixedValueParameter<IntValue>)Parameters["Alg1PopulationSize"]; }
+    }
+    private IFixedValueParameter<IntValue> SegmentNoParameter {
+      get { return (IFixedValueParameter<IntValue>)Parameters["SegmentNo"]; }
     }
     private IFixedValueParameter<IntValue> ElitesAlg1Parameter {
       get { return (IFixedValueParameter<IntValue>)Parameters["ElitesAlg1"]; }
@@ -112,9 +109,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public IFixedValueParameter<IntValue> Alg2MaximumEvaluatedSolutionsParameter {
       get { return (IFixedValueParameter<IntValue>)Parameters["Alg2MaximumEvaluatedSolutions"]; }
     }
-    public IFixedValueParameter<IntValue> GenerationsForAlg2ExecutionParameter {
-      get { return (IFixedValueParameter<IntValue>)Parameters["Generations for Excution of Algorithm 2"]; }
-    }
+    
     #endregion
 
     #region Properties
@@ -129,6 +124,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public int MaxTreeLength {
       get { return MaxTreeLengthParameter.Value.Value; }
       set { MaxTreeLengthParameter.Value.Value = value; }
+    }
+    public double MinTreeLength {
+      get { return MinTreeLengthParameter.Value.Value; }
+      set { MinTreeLengthParameter.Value.Value = value; }
     }
     public int MaxTreeDepth {
       get { return MaxTreeDepthParameter.Value.Value; }
@@ -150,6 +149,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public int Alg1PopulationSize {
       get { return Alg1PopulationSizeParameter.Value.Value; }
       set { Alg1PopulationSizeParameter.Value.Value = value; }
+    }
+    public int SegmentNo {
+      get { return SegmentNoParameter.Value.Value; }
+      set { SegmentNoParameter.Value.Value = value; }
     }
     public int Alg1MaximumGenerations {
       get { return Alg1MaximumGenerationsParameter.Value.Value; }
@@ -200,10 +203,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       get { return Alg2MaximumEvaluatedSolutionsParameter.Value.Value; }
       set { Alg2MaximumEvaluatedSolutionsParameter.Value.Value = value; }
     }
-    public int GenerationsForAlg2Execution {
-      get { return GenerationsForAlg2ExecutionParameter.Value.Value; }
-      set { GenerationsForAlg2ExecutionParameter.Value.Value = value; }
-    }
     #endregion
 
     #region Results Properties
@@ -220,10 +219,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       get { return (ISymbolicRegressionSolution)Results["Best Solution for Algorithm1"].Value; }
       set { Results["Best Solution for Algorithm1"].Value = value; }
     }
-    //public DoubleArray ResultsBestQualityAlg1 {
-    //  get { return (DoubleArray)Results["Best Quality for DecompositionBasedGA"].Value; }
-    //  set { Results["Best Quality for DecompositionBasedGA"].Value = new DoubleArray(value.ToArray()); }
-    //}
     public double ResultsBestQualityAlg1 {
       get { return ((DoubleValue)Results["Best Quality for Algorithm1"].Value).Value; }
       set { ((DoubleValue)Results["Best Quality for Algorithm1"].Value).Value = value; }
@@ -312,34 +307,36 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     [Storable]
     public IRandom random = new MersenneTwister();
     [Storable]
-    public DecompositionBasedGA alg1;
-    [Storable]
-    public int numSelectedIndividualsGA;
-    [Storable]
     public int numSelectedIndividualNSGA;
     [Storable]
-    public int alg1QualityLength;
+    public DecompositionBasedGA alg1;
+    [Storable]
+    public NSGA2 alg2;
     [Storable]
     public TreeRequirements treeRequirements;
     [Storable]
-    public NSGA2 alg2;
+    public int alg1QualityLength;
+    [Storable]
+    public int numSelectedIndividualsGA;
     #endregion
+    #region Constructors
     [StorableConstructor]
-    protected CooperativeApproachBase(StorableConstructorFlag _) : base(_) { }
-
-    protected CooperativeApproachBase(CooperativeApproachBase original, Cloner cloner)
-      : base(original, cloner) {
+    protected CooperativeApproachBase(StorableConstructorFlag _):base(_){ }
+    protected CooperativeApproachBase(CooperativeApproachBase original, Cloner cloner):base(original, cloner)
+    {
       random = cloner.Clone(original.random);
       alg1 = cloner.Clone(original.alg1);
       alg2 = cloner.Clone(original.alg2);
-      treeRequirements = cloner.Clone(original.treeRequirements);
-      numSelectedIndividualsGA = original.numSelectedIndividualsGA;
       numSelectedIndividualNSGA = original.numSelectedIndividualNSGA;
+      treeRequirements = cloner.Clone(original.treeRequirements);
+      alg1QualityLength = original.alg1QualityLength;
+      numSelectedIndividualsGA = original.numSelectedIndividualsGA;
     }
-    public CooperativeApproachBase() {
+    public CooperativeApproachBase():base() {
       Parameters.Add(new FixedValueParameter<IntValue>("Seed", "The random seed used to initialize the new pseudo random number generator.", new IntValue(0)));
       Parameters.Add(new FixedValueParameter<BoolValue>("SetSeedRandomly", "True if the random seed should be set to a random value, otherwise false.", new BoolValue(true)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg1PopulationSize", "The size of the population of solutions.", new IntValue(500)));
+      Parameters.Add(new FixedValueParameter<IntValue>("SegmentNo", "The size of the population of solutions.", new IntValue(10)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2PopulationSize", "The size of the population of solutions.", new IntValue(500)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg1MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
       Parameters.Add(new FixedValueParameter<IntValue>("Alg2MaximumGenerations", "The maximum number of generations which should be processed.", new IntValue(1000)));
@@ -350,19 +347,23 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Parameters.Add(new FixedValueParameter<IntValue>("MaxTreeDepth", "The maximum tree depth for expression trees.", new IntValue(8)));
       Parameters.Add(new FixedValueParameter<PercentValue>("MutationProbability", "The probability that the mutation operator is applied on a solution.", new PercentValue(0.25)));
       Parameters.Add(new FixedValueParameter<IntValue>("ElitesAlg1", "The numer of elite solutions which are kept in each generation.", new IntValue(1)));
-      Parameters.Add(new FixedValueParameter<IntValue>("Migration Interval from DecompositionBasedGA to Algorithm2", "Migration interval from DecompositionBasedGA to Algorithm2.", new IntValue(100)));
-      Parameters.Add(new FixedValueParameter<IntValue>("Generations for Excution of Algorithm 2", "Generation numbers Algorithm2 runs", new IntValue(20)));
       
-      Parameters.Add(new FixedValueParameter<DoubleValue>("MaximumSelectionPressure", "The maximum selection pressure which prematurely terminates the offspring selection step.", new DoubleValue(1.0)));
+      
+      Parameters.Add(new FixedValueParameter<DoubleValue>("MaximumSelectionPressure", "The maximum selection pressure which prematurely terminates the offspring selection step.", new DoubleValue(200)));
       Parameters.Add(new FixedValueParameter<DoubleValue>("SuccessRatio", "The ratio of successful offspring that has to be produced.", new DoubleValue(1.0)));
       Parameters.Add(new FixedValueParameter<DoubleValue>("ComparisonFactor", "A factor to compare offspring with parents", new DoubleValue(1.0)));
+      Parameters.Add(new FixedValueParameter<BoolValue>("Run Two Algorithms Separately", "To define if two algorithms should be run independently", new BoolValue(false)));
+      Parameters.Add(new FixedValueParameter<BoolValue>("ActiveOffspringSelector", "To define if offspring selector should be applied ", new BoolValue(true)));
+      Parameters.Add(new FixedValueParameter<DoubleValue>("MinTreeLength", "The minimum tree length for expression trees.", new DoubleValue(3.0)));
 
       Alg1MaximumGenerationsParameter.Hidden = true;
       Alg2MaximumGenerationsParameter.Hidden = true;
 
       var set = new ItemSet<ISelectionStrategy<double>> { new ProportionalSelection(), new TournamentSelection(), new TournamentSelection3(), new TournamentSelection4(), new TournamentSelection5(), new TournamentSelection6(), new TournamentSelection7(), new PercentageTournamentSelection(), new GeneralizedRankSelection(), new GeneralizedRankSelection3(), new GeneralizedRankSelection4(), new GeneralizedRankSelection5(), new EpsilonLexicaseSelection(.5), new AdaptiveEpsilonLexicaseSelection() };
       Parameters.Add(new ConstrainedValueParameter<ISelectionStrategy<double>>("Alg1Selector", "The selection mechanism for DecompositionBasedGA", set, set.First()));
+      
     }
+    #endregion
     public virtual void InitResults() {
       var problem = Problem as CooperativeProblem;
       if (problem == null) return;
@@ -382,8 +383,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Results.Add(new Result("Alg2Evaluations", "The number of function evaluations performed", new IntValue(0)));
       Results.Add(new Result("Non Dominated Solution for Algorithm2", "The non-dominated solutions for NSGA2", new ItemList<ISymbolicRegressionSolution>()));
       Results.Add(new Result("Best Qualities for Algorithm2", "The best qualities found by NSGA2", new ItemList<DoubleArray>()));
-      //Results.Add(new Result("Best Solution for NSGA2", "The best so-far solution found by NSGA2", (IItem)null));
-      //Results.Add(new Result("Best Quality for NSGA2", "The best so-far quality found by NSGA2", new DoubleArray()));
       
       Results.Add(new Result("Algorithm2 Pareto Front", "Current NSGA2 pareto front", new DoubleMatrix()));
 
@@ -425,61 +424,44 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       paretoFrontRow.VisualProperties.Color = Color.Blue;
       ResultsScatterPlot.Rows.Add(paretoFrontRow);
 
-      var newPointsRow = new ScatterPlotDataRow("New Points", "", new List<Point2D<double>>());
+      var newPointsRow = new ScatterPlotDataRow("New Pareto Points", "", new List<Point2D<double>>());
       newPointsRow.VisualProperties.PointSize = 8;
       newPointsRow.VisualProperties.IsVisibleInLegend = true;
       newPointsRow.VisualProperties.PointStyle = ScatterPlotDataRowVisualProperties.ScatterPlotDataRowPointStyle.Circle;
       newPointsRow.VisualProperties.Color = Color.Orange;
       ResultsScatterPlot.Rows.Add(newPointsRow);
 
-      var communicatedPointsRow = new ScatterPlotDataRow("Communicated Points", "", new List<Point2D<double>>());
+      var communicatedPointsRow = new ScatterPlotDataRow("Unsuccessful Elites", "", new List<Point2D<double>>());
       communicatedPointsRow.VisualProperties.PointSize = 8;
       communicatedPointsRow.VisualProperties.IsVisibleInLegend = true;
       communicatedPointsRow.VisualProperties.PointStyle = ScatterPlotDataRowVisualProperties.ScatterPlotDataRowPointStyle.Triangle;
       communicatedPointsRow.VisualProperties.Color = Color.Purple;
       ResultsScatterPlot.Rows.Add(communicatedPointsRow);
 
-      var ContributedPointsRow = new ScatterPlotDataRow("Contributed Points", "", new List<Point2D<double>>());
-      ContributedPointsRow.VisualProperties.PointSize = 8;
-      ContributedPointsRow.VisualProperties.IsVisibleInLegend = true;
-      ContributedPointsRow.VisualProperties.PointStyle = ScatterPlotDataRowVisualProperties.ScatterPlotDataRowPointStyle.Star4;
-      ContributedPointsRow.VisualProperties.Color = Color.Red;
-      ResultsScatterPlot.Rows.Add(ContributedPointsRow);
-
-      var SofarBestPointFromGA = new ScatterPlotDataRow("So-far Best Points", "", new List<Point2D<double>>());
-      SofarBestPointFromGA.VisualProperties.PointSize = 8;
-      SofarBestPointFromGA.VisualProperties.IsVisibleInLegend = true;
-      SofarBestPointFromGA.VisualProperties.PointStyle = ScatterPlotDataRowVisualProperties.ScatterPlotDataRowPointStyle.Cross;
-      SofarBestPointFromGA.VisualProperties.Color = Color.Green;
-      ResultsScatterPlot.Rows.Add(SofarBestPointFromGA);
-
-      //var qualitiesPerEvaluation = new IndexedDataTable<double>("Algorithm1 Qualities Per Evaluation") {
-      //  VisualProperties = {
-      //    XAxisTitle = "Evaluations",
-      //    YAxisTitle = "Quality"
-      //  },
-      //  Rows = { new IndexedDataRow<double>("First-hit Graph") { VisualProperties = {
-      //    ChartType = DataRowVisualProperties.DataRowChartType.StepLine,
-      //    LineWidth = 2
-      //  } } }
-      //};
-
-      //Results.Add(new Result("Algorithm1 Qualities Per Evaluation", qualitiesPerEvaluation));
-
-      //var nsga2HypervolumePerEvaluation = new IndexedDataTable<double>("NSGA2 Hypervolume Per Evaluation") {
-      //  VisualProperties = {
-      //    XAxisTitle = "Evaluations",
-      //    YAxisTitle = "Hypervolume"
-      //  },
-      //  Rows = { new IndexedDataRow<double>("First-hit Graph") { VisualProperties = {
-      //    ChartType = DataRowVisualProperties.DataRowChartType.StepLine,
-      //    LineWidth = 2
-      //  } } }
-      //};
-
-      //Results.Add(new Result("NSGA2 Hypervolume Per Evaluation", nsga2HypervolumePerEvaluation));
+      var contributedPointsRow = new ScatterPlotDataRow("Successful Elites", "", new List<Point2D<double>>());
+      contributedPointsRow.VisualProperties.PointSize = 8;
+      contributedPointsRow.VisualProperties.IsVisibleInLegend = true;
+      contributedPointsRow.VisualProperties.PointStyle = ScatterPlotDataRowVisualProperties.ScatterPlotDataRowPointStyle.Star4;
+      contributedPointsRow.VisualProperties.Color = Color.Red;
+      ResultsScatterPlot.Rows.Add(contributedPointsRow);
     }
     protected override void Initialize(CancellationToken cancellationToken) {
+      if (SetSeedRandomly) {
+        Seed = RandomSeedGenerator.GetSeed();
+      }
+      random.Reset(Seed);
+      treeRequirements = new TreeRequirements(MaxTreeLength, MinTreeLength, MaxTreeDepth, MutationProbability);
+      
+      // Algorithm 1 Parameters
+      alg1QualityLength = Problem.NumObjectives + 1;
+      alg1 = new DecompositionBasedGA(alg1QualityLength, treeRequirements, Alg1Selector, OffspringParentsComparisonTypes.EpsilonLexicaseBasedComparison, SegmentNo);
+      numSelectedIndividualsGA = 2 * (Alg1PopulationSize - ElitesAlg1);
+      Alg1MaximumGenerations = Alg1MaximumEvaluatedSolutions / Alg1PopulationSize;
+
+      // Algorithm 2 Parameters
+      numSelectedIndividualNSGA = 2 * Alg2PopulationSize;
+      alg2 = new NSGA2(Problem.NumObjectives, treeRequirements);
+      Alg2MaximumGenerations = Alg2MaximumEvaluatedSolutions / Alg2PopulationSize;
       base.Initialize(cancellationToken);
     }
 
@@ -503,13 +485,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       ResultsQualitiesAlg1Worst.Values.Add(ResultsWorstQualityAlg1);
       ResultsQualitiesAlg1 = alg1.CalculateDoubleMatrix();
       ResultsAlg1Iterations++;
-
-      //for (int i = 0; i < alg1.Elites.Count; i++) {
-      //  var qualities = alg1.Elites[i].Quality.ToArray();
-      //  for (int j = 0; j < alg1QualityLength; j++) {
-      //    ResultsElitesAlg1[i, j] = qualities[j];
-      //  }
-      //}
 
     }
     public void NSGA2Analyzer() {
@@ -539,7 +514,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       ResultsNonDominatedSolutionsAlg2.Clear();
       ResultsBestQualitiesAlg2.Clear();
       foreach (var individual in alg2.CurrentFronts[0]) {
-        if (ResultsAlg2Iterations == Alg2MaximumGenerations - 1) {
+        if (ResultsAlg2Evaluations >= Alg2MaximumEvaluatedSolutions) {
           var nonDominatedTree = individual.Solution;
           ResultsNonDominatedSolutionsAlg2.Add(new SymbolicRegressionModel(Problem.ProblemData.TargetVariable, (ISymbolicExpressionTree)nonDominatedTree.Clone(), Problem.SymbolicExpressionTreeInterpreter, Problem.EstimationLimits.Lower, Problem.EstimationLimits.Upper).CreateRegressionSolution(Problem.ProblemData));
         }
@@ -591,10 +566,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           }
         }
         if (newPoints.Count > 0) {
-          if (ResultsScatterPlot.Rows["New Points"].Points.Count > 0) {
-            previousParetoPoints.AddRange(ResultsScatterPlot.Rows["New Points"].Points);
+          if (ResultsScatterPlot.Rows["New Pareto Points"].Points.Count > 0) {
+            previousParetoPoints.AddRange(ResultsScatterPlot.Rows["New Pareto Points"].Points);
           }
-          ResultsScatterPlot.Rows["New Points"].Points.Replace(newPoints);
+          ResultsScatterPlot.Rows["New Pareto Points"].Points.Replace(newPoints);
         }
         ResultsScatterPlot.Rows["Pareto Front"].Points.Replace(previousParetoPoints);
       }

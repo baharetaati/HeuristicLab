@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using HEAL.Attic;
@@ -10,12 +11,12 @@ using HeuristicLab.Encodings.SymbolicExpressionTreeEncoding;
 using HeuristicLab.Problems.CooperativeProblem;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
+  [StorableType("C60CF682-02E9-421D-BD0D-AF06B5310CB0")]
   public class SingleObjectiveIndividual : DeepCloneable {
     #region Properties
-    [Storable]
-    public double Quality;
-    [Storable]
     private readonly TreeRequirements _treeRequirements;
+    [Storable]
+    public double Quality { get; set; }
     [Storable]
     public ISymbolicExpressionTree Solution { get; set; }
     #endregion
@@ -34,7 +35,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       _treeRequirements = treeRequirements;
       Initialize(random, problem);
     }
-    protected SingleObjectiveIndividual(SingleObjectiveIndividual original, Cloner cloner) {
+    protected SingleObjectiveIndividual(SingleObjectiveIndividual original, Cloner cloner):base(original,cloner) {
       Quality= original.Quality;
       _treeRequirements = cloner.Clone(original._treeRequirements);
       Solution = cloner.Clone(original.Solution);

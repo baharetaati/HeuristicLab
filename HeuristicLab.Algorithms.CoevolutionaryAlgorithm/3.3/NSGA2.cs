@@ -82,7 +82,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       foreach (var ind in gaCommunicatedIndividuals) {
         var sol = (ISymbolicExpressionTree)ind.Solution.Clone();
         var quality = ind.Quality.Take(QualityLength).ToArray();
-        Population.Add(new IndividualNSGA2(_treeRequirements, sol, quality));
+        Population.Add(new IndividualNSGA2(_treeRequirements, sol, quality, ind.NormalizedTreeLength));
         Fitness.Add(quality);
       }
     }
@@ -103,55 +103,55 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public void RankAndCrowdingSorter(CooperativeProblem problem) {
       int[] rank;
       var solutions = new List<ISymbolicExpressionTree>();
-      
+      bool[] maximization = problem.Maximization;
       //List<double[]> qualitiesWithoutWeightedSumValue = Fitness.Select(arr => arr.Take(2).ToArray()).ToList();
       foreach (var individual in Population) {
         solutions.Add((ISymbolicExpressionTree)individual.Solution.Clone());
       }
       // Generating fronts and ranks
-      var fronts = sorter.FastNonDominatedSorting(solutions, Fitness, problem.Maximization, out rank);
+      var fronts = sorter.FastNonDominatedSorting(solutions, Fitness, maximization, out rank);
       // =================== Scenario one ===================
       // Clear CurrentParetoFront, Population, Fitness, Ranks, and CrowdingDistances
       CurrentFronts.Clear();
-      for (int i = 0; i < fronts.Count; i++) {
-        if (fronts[i].Count > 0) {
-          List<IndividualNSGA2> front = new List<IndividualNSGA2>();
-          List<ISymbolicExpressionTree> frontSolutions = fronts[i].Select(tuple => tuple.Item1).ToList();
-          List<double[]> frontQualities = fronts[i].Select(tuple => tuple.Item2).ToList();
-          var distances = sorter.CalculateCrowdingDistance(frontQualities, problem.Maximization);
-          var sortedIndexes = sorter.RankBasedCrowdedComparisonSorter(distances);
-          foreach (var index in sortedIndexes) {
-            var ind = new IndividualNSGA2(_treeRequirements, (ISymbolicExpressionTree)frontSolutions[index].Clone(), frontQualities[index], i, distances[index]);
-            front.Add(ind);
-          }
-          CurrentFronts.Add(front);
-        }
-      }
-      // =================== Scenario two ===================
-      //var maxRank = rank.Max();
-      //for (int i = 0; i < maxRank + 1; i++) {
-      //  List<double[]> frontQualities = new List<double[]>();
-      //  List<IndividualNSGA2> front = new List<IndividualNSGA2>();
-      //  List<IndividualNSGA2> currentFront = new List<IndividualNSGA2>();
-      //  for (int k = 0; k < rank.Length; k++) {
-      //    if (rank[k] == i) {
-      //      Population[k].SetRank(i);
-      //      front.Add(Population[k]);
-      //      frontQualities.Add(Population[k].Quality);
+      //for (int i = 0; i < fronts.Count; i++) {
+      //  if (fronts[i].Count > 0) {
+      //    List<IndividualNSGA2> front = new List<IndividualNSGA2>();
+      //    List<ISymbolicExpressionTree> frontSolutions = fronts[i].Select(tuple => tuple.Item1).ToList();
+      //    List<double[]> frontQualities = fronts[i].Select(tuple => tuple.Item2).ToList();
+      //    var distances = sorter.CalculateCrowdingDistance(frontQualities, problem.Maximization);
+      //    var sortedIndexes = sorter.RankBasedCrowdedComparisonSorter(distances);
+      //    foreach (var index in sortedIndexes) {
+      //      var ind = new IndividualNSGA2(_treeRequirements, (ISymbolicExpressionTree)frontSolutions[index].Clone(), frontQualities[index], i, distances[index]);
+      //      front.Add(ind);
       //    }
+      //    CurrentFronts.Add(front);
       //  }
-      //  var distances = sorter.CalculateCrowdingDistance(frontQualities);
-      //  for (int j = 0; j < front.Count; j++) {
-      //    front[j].SetCrowdingDistance(distances[j]);
-      //  }
-      //  var sortedIndexes = sorter.RankBasedCrowdedComparisonSorter(distances);
-        
-      //  foreach (var index in sortedIndexes) {
-      //    currentFront.Add(front[index]);
-      //  }
-      //  CurrentFronts.Add(currentFront);
       //}
-      
+      // =================== Scenario two ===================
+      var maxRank = rank.Max();
+      for (int i = 0; i < maxRank + 1; i++) {
+        List<double[]> frontQualities = new List<double[]>();
+        List<IndividualNSGA2> front = new List<IndividualNSGA2>();
+        List<IndividualNSGA2> currentFront = new List<IndividualNSGA2>();
+        for (int k = 0; k < rank.Length; k++) {
+          if (rank[k] == i) {
+            Population[k].SetRank(i);
+            front.Add((IndividualNSGA2)Population[k].Clone());
+            frontQualities.Add(Population[k].Quality);
+          }
+        }
+        var distances = sorter.CalculateCrowdingDistance(frontQualities, maximization);
+        for (int j = 0; j < front.Count; j++) {
+          front[j].SetCrowdingDistance(distances[j]);
+        }
+        var sortedIndexes = sorter.RankBasedCrowdedComparisonSorter(distances);
+
+        foreach (var index in sortedIndexes) {
+          currentFront.Add(front[index]);
+        }
+        CurrentFronts.Add(currentFront);
+      }
+
     }
     public void UpdatePopulation(int populationSize) {
       Population.Clear();
@@ -167,7 +167,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           // If adding all individuals from the current front would exceed the size constraint, add them one by one.
           for (int i = 0; i < front.Count; i++) {
             if (Population.Count < populationSize) {
-              Population.Add(front[i]);
+              Population.Add((IndividualNSGA2)front[i].Clone());
             } else {
               reachesPopulationSize = true;
               break;

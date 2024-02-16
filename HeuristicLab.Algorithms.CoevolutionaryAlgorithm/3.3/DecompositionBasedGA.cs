@@ -23,6 +23,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   public class DecompositionBasedGA : BaseAlg {
     #region Properties
     public ISelectionStrategy<double> Selector { get; }
+    private int segmentNo { get; }
     [Storable]
     public List<List<IndividualGA>> Population { get; set; } = new List<List<IndividualGA>>();
     [Storable]
@@ -54,7 +55,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     #region Constructors
     [StorableConstructor]
     protected DecompositionBasedGA(StorableConstructorFlag _) : base(_){ }
-    public DecompositionBasedGA(int qualityLength, TreeRequirements treeRequirements, ISelectionStrategy<double> selector, OffspringParentsComparisonTypes offspringParentsComparisonTypes, int eliteSize = 1) :base(treeRequirements){
+    public DecompositionBasedGA(int qualityLength, TreeRequirements treeRequirements, ISelectionStrategy<double> selector, OffspringParentsComparisonTypes offspringParentsComparisonTypes, int _segmentNo, int eliteSize = 1) :base(treeRequirements){
 
       QualityLength = qualityLength;
       Population = new List<List<IndividualGA>>();
@@ -70,6 +71,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       ActiveSelectionPressure = 0.0;
       CountSuccessfulOffspring = 0;
       CountUnsuccessfulOffspring = 0;
+      segmentNo = _segmentNo;
     }
     protected DecompositionBasedGA(DecompositionBasedGA original, Cloner cloner):base(original,cloner) {
       QualityLength = original.QualityLength;
@@ -86,11 +88,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       ActiveSelectionPressure = original.ActiveSelectionPressure;
       CountSuccessfulOffspring = original.CountSuccessfulOffspring;
       CountUnsuccessfulOffspring = original.CountUnsuccessfulOffspring;
+      segmentNo = original.segmentNo;
     }
     #endregion
     public void Initialization(int popSize, CooperativeProblem problem, IRandom random) {
-      int numInitialSegments = 10;
-      var referenceVectors = DasAndDennisTechnique.GetWeightVectors(numInitialSegments, problem.NumObjectives);
+      var referenceVectors = DasAndDennisTechnique.GetWeightVectors(segmentNo, problem.NumObjectives);
       Weights = referenceVectors.Select(vector => vector.ToArray()).ToList();
       foreach (var w in Weights) {
         Console.WriteLine($"w[0]={w[0]} w[1]={w[1]}");
@@ -132,6 +134,25 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       if (index >= 0 && index < Weights.Count){
         Weights[index] = weight;
       }
+    }
+    private void SetElite(bool maximization) {
+      double bestQlty = double.MaxValue;
+      int bestIndex = -1;
+      if (maximization) {
+        bestQlty = double.MinValue;
+      }
+
+      for (int i=0; i<Elites.Count; i++) {
+        if ((!maximization && Elites[i].Quality[QualityLength-1] < bestQlty) ||
+          (maximization && Elites[i].Quality[QualityLength - 1] > bestQlty)) {
+          bestIndex = i;
+          bestQlty = Elites[i].Quality[QualityLength-1];
+        }
+      }
+      if (bestIndex == -1) {
+        throw new Exception($"SetElite() index {bestIndex} is not valid");
+      }
+      Elite = (IndividualGA)Elites[bestIndex].Clone();
     }
     private int FindElitesIndex(List<double[]> fit, bool maximization) {
       List<double[]> tempFit = new List<double[]>();
@@ -215,44 +236,33 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     private void FindBestWorstAverageQuality(bool maximization) {
       double bestQlty = double.MaxValue;
       double worstQlty = double.MinValue;
-      int weightedSumIndex = QualityLength - 1;
-      
+      int errIndex = 0;
+
       if (maximization) {
         bestQlty = double.MinValue;
         worstQlty = double.MaxValue;
-        foreach (var individual in Elites) {
-          if (individual.Quality[weightedSumIndex] > bestQlty) {
-            bestQlty = individual.Quality[weightedSumIndex];
-            BestQuality = individual.Quality[weightedSumIndex];
-            Elite = (IndividualGA) individual.Clone();
+      }
+      foreach (var subPop in Population) {
+        foreach (var individual in subPop) {
+          if ((maximization && individual.Quality[errIndex] > bestQlty) ||
+               (!maximization && individual.Quality[errIndex] < bestQlty)) {
+            bestQlty = individual.Quality[errIndex];
           }
-        }
-
-        foreach (var individual in Elites) {
-          if (individual.Quality[weightedSumIndex] < worstQlty) {
-            worstQlty = individual.Quality[weightedSumIndex];
-            WorstQuality = individual.Quality[weightedSumIndex];
-          }
-        }
-      } else {
-        foreach (var individual in Elites) {
-          if (individual.Quality[weightedSumIndex] < bestQlty) {
-            bestQlty = individual.Quality[weightedSumIndex];
-            BestQuality = individual.Quality[weightedSumIndex];
-            Elite = (IndividualGA) individual.Clone();
-          }
-        }
-        foreach (var individual in Elites) {
-          if (individual.Quality[weightedSumIndex] > worstQlty) {
-            worstQlty = individual.Quality[weightedSumIndex];
-            WorstQuality = individual.Quality[weightedSumIndex];
-            
-          }
-
         }
       }
-      var weightedSumValues = CreateWeightedSumList();
-      AverageQuality = CalculateAverage(weightedSumValues);
+      foreach (var subPop in Population) {
+        foreach (var individual in subPop) {
+          if ((maximization && individual.Quality[errIndex] < worstQlty) ||
+               (!maximization && individual.Quality[errIndex] > worstQlty)) {
+            worstQlty = individual.Quality[errIndex];
+          }
+        }
+      }
+      BestQuality = bestQlty;
+      WorstQuality = worstQlty;
+     
+      var errValues = CreateFitList(errIndex);
+      AverageQuality = CalculateAverage(errValues);
     }
     public int Apply(int populationSize, CooperativeProblem problem, IRandom random) {
       var countEvaluations = 0;
@@ -321,6 +331,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Console.WriteLine($"count bad models = {countAllBadModels} out of {populationSize}");
       Elites.Clear();
       Elites.AddRange(tmpElites);
+      SetElite(maximization);
       Fitness.Clear();
       Fitness.AddRange(tmpFit);
       int countBadElites = 0;
@@ -473,6 +484,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Fitness.AddRange(newFit);
       Elites.Clear();
       Elites.AddRange(newElites);
+      SetElite(maximization);
       int countBadElites = 0;
       foreach (var indElited in Elites) {
         if (indElited.Quality[0] == 1.0) {
@@ -500,6 +512,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         var bestIndex = FindElitesIndex(fit, maximization);
         Elites.Add((IndividualGA)Population[i][bestIndex].Clone());
       }
+      SetElite(maximization);
       FindBestWorstAverageQuality(maximization);
       return countEvaluations;
     }
@@ -595,6 +608,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Fitness.AddRange(newFit);
       Elites.Clear();
       Elites.AddRange(newElites);
+      SetElite(maximization);
       int countBadElites = 0;
       foreach (var indElited in Elites) {
         if (indElited.Quality[0] == 1.0) {
@@ -613,9 +627,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     private DominationResult ComparisonBasedOnDomination(double[] childQuality, double[] parentQuality, bool[] maximization) {
       return DominationCalculator<ISymbolicExpressionTree>.Dominates(childQuality, parentQuality, maximization, true); 
     }
-    public List<double> CreateWeightedSumList() {
-      List<double> lastValuesList = Fitness.Select(arr => arr.Last()).ToList();
-      return lastValuesList;
+    public List<double> CreateFitList(int index) {
+      List<double> fitList = Fitness.Select(arr => arr[index]).ToList();
+      return fitList;
     }
     public DoubleMatrix CalculateDoubleMatrix() {
       DoubleMatrix convertedFit = new DoubleMatrix(Fitness.Count, QualityLength);

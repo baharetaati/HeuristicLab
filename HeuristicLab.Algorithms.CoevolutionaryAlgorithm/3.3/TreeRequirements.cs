@@ -16,7 +16,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   public class TreeRequirements : DeepCloneable{
     #region Properties
     //[Storable]
-    //public TypeCoherentExpressionGrammar Grammar { get;}
+    public double MinTreeLength { get; }
     //[Storable]
     //public ProbabilisticTreeCreator TreeCreator { get;}
     //[Storable]
@@ -33,12 +33,13 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     #region Constructors
     [StorableConstructor]
     protected TreeRequirements(StorableConstructorFlag _) { }
-    public TreeRequirements(int maxTreeLength, int maxTreeDepth, double mutationProbability) {
+    public TreeRequirements(int maxTreeLength, double minTreeLength, int maxTreeDepth, double mutationProbability) {
       //Grammar = new TypeCoherentExpressionGrammar();
       //Grammar.ConfigureAsDefaultRegressionGrammar();
       //Grammar.ConfigureVariableSymbols(problem.ProblemData);
       //TreeCreator = new ProbabilisticTreeCreator();
       MaxTreeLength = maxTreeLength;
+      MinTreeLength = minTreeLength;
       MaxTreeDepth = maxTreeDepth;
       MutationProbability = mutationProbability;
       Manipulators = new List<ISymbolicExpressionTreeManipulator>();
@@ -48,6 +49,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       //Grammar = cloner.Clone(original.Grammar);
       //TreeCreator = cloner.Clone(original.TreeCreator);
       MaxTreeLength = original.MaxTreeLength;
+      MinTreeLength = original.MinTreeLength;
       MaxTreeDepth = original.MaxTreeDepth;
       MutationProbability = original.MutationProbability;
       Manipulators = original.Manipulators.Select(cloner.Clone).ToList();

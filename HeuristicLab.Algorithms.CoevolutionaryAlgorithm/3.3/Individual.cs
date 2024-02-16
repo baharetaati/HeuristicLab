@@ -20,52 +20,45 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   public abstract class Individual : DeepCloneable {
     #region Properties
     [Storable]
-    private readonly TreeRequirements _treeRequirements ;
+    public TreeRequirements _treeRequirements ;
     [Storable]
     public double[] Quality { get; set; }
     [Storable]
-    public bool BeingCommunicated { get; set; }
-    [Storable]
-    public bool BeingEffective { get; set; }
-    [Storable]
     public ISymbolicExpressionTree Solution{ get; set;}
+    [Storable]
+    public double NormalizedTreeLength { get; set; }
     #endregion
 
     #region Constructors and Cloning
-    
+
     [StorableConstructor]
     protected Individual(StorableConstructorFlag _) { }
     //Recreating the individual of NSGA2
-    public Individual(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality) {
+    public Individual(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality, double normalizedTreeLength) {
       _treeRequirements = treeRequirements;
       Solution = solution;
       Quality = quality;
-      BeingCommunicated = false;
-      BeingEffective = false;
-
+      NormalizedTreeLength = normalizedTreeLength;
     }
     //Offspring creation
     public Individual(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, int qualityLength) {
       _treeRequirements = treeRequirements;
       Solution = solution;
       Quality = new double[qualityLength];
-      BeingCommunicated = false;
-      BeingEffective = false;
+      NormalizedTreeLength = -1.0;
     }
     //Initializing solutions
     public Individual(TreeRequirements treeRequirements, int qualityLength, CooperativeProblem problem, IRandom random) {
       _treeRequirements = treeRequirements;
       Quality = new double[qualityLength];
-      BeingCommunicated = false;
-      BeingEffective = false;
+      NormalizedTreeLength = -1.0;
       Initialize(random, problem);
     }
     protected Individual(Individual original, Cloner cloner):base(original, cloner) { 
       _treeRequirements = cloner.Clone(original._treeRequirements);
       Solution = cloner.Clone(original.Solution);
       Quality = original.Quality.ToArray();
-      BeingCommunicated = original.BeingCommunicated;
-      BeingEffective = original.BeingEffective;
+      NormalizedTreeLength = original.NormalizedTreeLength;
     }
     #endregion
     public void Initialize(IRandom random, CooperativeProblem problem) {

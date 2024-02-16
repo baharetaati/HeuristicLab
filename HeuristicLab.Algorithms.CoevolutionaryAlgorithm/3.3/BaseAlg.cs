@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using HEAL.Attic;
@@ -9,6 +10,7 @@ using HeuristicLab.Core;
 using HeuristicLab.Encodings.SymbolicExpressionTreeEncoding;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
+  [StorableType("40C3E34E-72E3-4110-8472-3C19420E6221")]
   public class BaseAlg : DeepCloneable {
     #region Properties
     [Storable]

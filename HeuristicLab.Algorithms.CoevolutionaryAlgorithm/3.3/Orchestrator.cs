@@ -30,8 +30,20 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("5EF90076-0721-4503-B60A-6417CDAEEADA")]
   public abstract class Orchestrator : CooperativeApproachBase{
     const double Epsilon = 1e-6;
-    const double MinTreeLength = 1.0;
+    const int NumObjectives = 2;
+    static readonly double[] ReferencePoint = new double[2] { 1.0, 1.0 };
     static readonly double[] IdealPoint = new double[] { 0.0, 0.0 };
+    #region Parameters
+    public IFixedValueParameter<IntValue> ExecutionIntervalParameter {
+      get { return (IFixedValueParameter<IntValue>)Parameters["Execution Interval"]; }
+    }
+    #endregion
+    #region Properties
+    public int ExecutionInterval {
+      get { return ExecutionIntervalParameter.Value.Value; }
+      set { ExecutionIntervalParameter.Value.Value = value; }
+    }
+    #endregion
     #region Results Properties
     public ItemList<IntValue> ResultsAlg1RunIntervalInGenerations {
       get { return (ItemList<IntValue>)Results["Algorithm1 Run Interval Generations"].Value; }
@@ -66,21 +78,26 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public int nsga2Interval = 0;
     [Storable]
     public int gaInterval = 0;
-    [Storable]
-    public int adjustWeightInterval = 0;
     #endregion
     #region Constructors
     [StorableConstructor]
     protected Orchestrator(StorableConstructorFlag _) : base(_) { }
-    protected Orchestrator(Orchestrator original, Cloner cloner) {
+    protected Orchestrator(Orchestrator original, Cloner cloner):base(original,cloner) {
       pauseAlg2 = original.pauseAlg2;
       gaInterval = original.gaInterval;
-      adjustWeightInterval = original.adjustWeightInterval;
+      nsga2Interval = original.nsga2Interval;
     }
-    public Orchestrator() {
-
+    public Orchestrator():base() {
+      Parameters.Add(new FixedValueParameter<IntValue>("Execution Interval", "Generation numbers Algorithm2 runs", new IntValue(10)));
     }
     #endregion
+    protected override void Initialize(CancellationToken cancellationToken) {
+      base.Initialize(cancellationToken);
+      gaInterval = 0;
+      pauseAlg2 = false;
+      nsga2Interval = 0;
+      InitResults();
+    }
     public override void InitResults() {
       base.InitResults();
       Results.Add(new Result("Hypervolume for Algorithm2", "Current hypervolume for NSGA2", new DoubleValue(0.0)));
@@ -92,13 +109,13 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       var nsga2HypervolumeRow = new DataRow("Algorithm2 Hypervolume Without Algorithm1 Contribution");
       nsga2HypervolumeRow.VisualProperties.LineStyle = DataRowVisualProperties.DataRowLineStyle.Solid;
-      nsga2HypervolumeRow.VisualProperties.LineWidth = 3;
+      //nsga2HypervolumeRow.VisualProperties.LineWidth = 3;
       nsga2HypervolumeRow.VisualProperties.Color = Color.BlueViolet;
       tableHypervolume.Rows.Add(nsga2HypervolumeRow);
 
       var nsag2GAHypervolumeRow = new DataRow("Algorithm2 Hypervolume With Algorithm1 Contribution");
       nsag2GAHypervolumeRow.VisualProperties.LineStyle = DataRowVisualProperties.DataRowLineStyle.DashDotDot;
-      nsag2GAHypervolumeRow.VisualProperties.LineWidth = 3;
+      //nsag2GAHypervolumeRow.VisualProperties.LineWidth = 3;
       nsag2GAHypervolumeRow.VisualProperties.Color = Color.DeepPink;
       tableHypervolume.Rows.Add(nsag2GAHypervolumeRow);
 
@@ -112,10 +129,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           nsgaCountEvaluations += countNSGAEvaluations;
           ResultsAlg2Evaluations += nsgaCountEvaluations;
           nsga2Interval++;
-        } else {
-          pauseAlg2 = true;
-        }
-      } else if (pauseAlg2) {
+        } 
+      } else {
         if (ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) {
           var gaCountEvaluations = 0;
           int countGAEvaluations = 0;
@@ -124,61 +139,55 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           }
           else {
             if (ActiveOffspringSelector) {
-              if (ResultsActivePressure <= 100) {
+              if (ResultsActivePressure <= MaximumSelectionPressure) {
                 countGAEvaluations = alg1.ApplyStrictOffspringSelection(Alg1PopulationSize, Problem, random);
                 ResultsActivePressure = alg1.ActiveSelectionPressure;
                 ResultsCountSuccessfulOffspring = alg1.CountSuccessfulOffspring;
                 ResultsCountUnsuccessfulOffspring = alg1.CountUnsuccessfulOffspring;
-              } else {
-                pauseAlg2 = false;
-              }
+              } 
             } else {
               countGAEvaluations = alg1.Apply(Alg1PopulationSize, Problem, random);
             }
-            gaCountEvaluations += countGAEvaluations;
-            ResultsAlg1Evaluations += gaCountEvaluations;
-            gaInterval++;
+            
           }
-        } else {
-          pauseAlg2 = false;
-        }
-
+          gaCountEvaluations += countGAEvaluations;
+          ResultsAlg1Evaluations += gaCountEvaluations;
+          gaInterval++;
+        } 
       }
     }
     public void AnalyzeOrchestrator() {
       if (!pauseAlg2) {
         NSGA2Analyzer();
-        double[] refPoints;
         bool maximization = Problem.Maximization[0];
         bool[] maximizationArray = Problem.Maximization;
-        if (maximization) {
-          refPoints = new double[] { 0.0, MaxTreeLength };
-        } else {
-          refPoints = new double[] { 1.0, MaxTreeLength};
-        }
-
+        
         List<double[]> nsga2ParetoFrontQualities = new List<double[]>();
+        List<double[]> nsga2ParetoFrontWithNormalizeTree = new List<double[]>();
 
         if (alg2.CurrentFronts[0].Count > 0) {
           foreach (var ind in alg2.CurrentFronts[0]) {
+            double[] paretoPoint = new double[NumObjectives];
+            paretoPoint[0] = ind.Quality[0];
+            paretoPoint[1] = ind.NormalizedTreeLength;
+            nsga2ParetoFrontWithNormalizeTree.Add(paretoPoint);
             nsga2ParetoFrontQualities.Add(ind.Quality.ToArray());
           }
         }
-        //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
 
-        var nsga2Hypervolume = HypervolumeCalculation.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
+        var nsga2Hypervolume = HypervolumeCalculation.Calculate(nsga2ParetoFrontWithNormalizeTree, ReferencePoint, maximizationArray);
         
         
-        if (nsga2Interval > 5 && nsga2Hypervolume > ResultsHypervolumeAlg2 && ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions && ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
-          ResultsAlg2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
-          Console.WriteLine($"nsga2Interval = {nsga2Interval}");
-          pauseAlg2 = true;
-          gaInterval = 0;
-          if (ResultsAlg1Iterations != 0) {
-            AdjustWeights(nsga2ParetoFrontQualities);
+        if ((nsga2Interval > ExecutionInterval && nsga2Hypervolume > ResultsHypervolumeAlg2) || ResultsAlg2Evaluations >= Alg2MaximumEvaluatedSolutions) {
+          if (ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions && ResultsActivePressure <= MaximumSelectionPressure) {
+            ResultsAlg2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
+            pauseAlg2 = true;
+            gaInterval = 0;
+            if (ResultsAlg1Iterations != 0) {
+              AdjustWeights(nsga2ParetoFrontWithNormalizeTree);
+            }
           }
-          
-        }
+        }  
         ResultsHypervolumeAlg2 = nsga2Hypervolume;
         ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(nsga2Hypervolume);
         ResultsAlg2HypervolumeWithGAContributionRow.Values.Add(ResultsHypervolumeAlg2WithGAContribution);
@@ -186,7 +195,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         GAAnalyzer();
         CommunicationGAToNSGA2();
       }
-      
     }
     private void AdjustWeights(List<double[]> paretoFront) {
       List<double[]> gaElites = new List<double[]>();
@@ -199,17 +207,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         //gaElites.Add(elite.Quality.Take(numObjectives).ToArray());
       }
       if (paretoFront.Count > 0) {
-        var normalizedParetoFront = new List<double[]>();
-        foreach (var point in paretoFront) {
-          double[] pf = new double[numObjectives];
-          pf[0] = point[0];
-          pf[1] = (double)(point[1] - MinTreeLength) / (Problem.SymbolicExpressionTreeMaximumLength - MinTreeLength);
-          normalizedParetoFront.Add(pf);
-        }
         double[] sparsityLevel = new double[paretoFront.Count];
         List<double[]> distances = new List<double[]>();
-        for (int i = 0; i < normalizedParetoFront.Count; i++) {
-          double[] paretoPoint = normalizedParetoFront[i];
+        for (int i = 0; i < paretoFront.Count; i++) {
+          double[] paretoPoint = paretoFront[i];
           double sl = 1.0;
           double[] paretoDist = new double[gaElites.Count];
           for (int j = 0; j < gaElites.Count; j++) {
@@ -230,17 +231,14 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         double[] weight = new double[numObjectives];
         double sum = 0.0;
         for (int i = 0; i < numObjectives; i++) {
-          sum += 1.0 / (double)(normalizedParetoFront[sparsePointIndex][i] - IdealPoint[i]+Epsilon);
+          sum += 1.0 / (double)(paretoFront[sparsePointIndex][i] - IdealPoint[i]+Epsilon);
         }
         for (int i = 0; i < numObjectives; i++) {
-          weight[i] = (double)(1.0 / normalizedParetoFront[sparsePointIndex][i] - IdealPoint[i] + Epsilon) / sum;
+          weight[i] = (double)(1.0 / paretoFront[sparsePointIndex][i] - IdealPoint[i] + Epsilon) / sum;
           if (double.IsInfinity(weight[i])) {
-            Console.WriteLine($"sum={sum} sparsePointIndex={sparsePointIndex}");
-            throw new Exception("Weight contains infinity");
+            weight[i] = 0.0;
           }
         }
-        
-        Console.WriteLine($"weight[0]={weight[0]}, weight[1]={weight[1]}");
         
         alg1.SetWeight(weight, nearestEliteIndex);
       }
@@ -252,7 +250,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       bool[] maximizationArray = Problem.Maximization;
       bool maximization = Problem.Maximization[0];
       var gaBestQualities = new List<double[]>();
-      var numObjectives = Problem.NumObjectives;
+      var gaQualitiesWithNormalizedTree = new List<double[]>();
       //if (gaBestSolutions.Count > 0) {
       //  foreach (var individual in gaBestSolutions) {
       //    double[] indQualities = individual.Quality.Take(Problem.NumObjectives).ToArray();
@@ -261,8 +259,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       //}
       if (alg1.Elites.Count > 0) {
         foreach (var individual in alg1.Elites) {
-          double[] indQualities = individual.Quality.Take(numObjectives).ToArray();
-          gaBestQualities.Add(indQualities);
+          gaBestQualities.Add(individual.Quality.Take(NumObjectives).ToArray());
+          double[] indQualities = new double[NumObjectives] {individual.Quality[0], individual.NormalizedTreeLength};
+          gaQualitiesWithNormalizedTree.Add(indQualities);
         }
       }
       //gaParetoFrontQualities.AddRange(gaBestQualities);
@@ -280,63 +279,59 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           // If a duplicate is found, remove it
           if (isDuplicate) {
             gaBestQualities.RemoveAt(j);
+            gaQualitiesWithNormalizedTree.RemoveAt(j);
             j--; // Adjust the index after removal
           }
         }
       }
 
       List<double[]> gaContributionParetoFront = new List<double[]>();
+      
       List<double[]> nsga2ParetoFrontQualities = new List<double[]>();
+      List<double[]> nsga2ParetoWithNormalizedTree = new List<double[]>();
 
       if (alg2.CurrentFronts[0].Count > 0) {
         foreach (var ind in alg2.CurrentFronts[0]) {
+          double[] indQualities = new double[NumObjectives] { ind.Quality[0],ind.NormalizedTreeLength };
+          nsga2ParetoWithNormalizedTree.Add(indQualities);
           nsga2ParetoFrontQualities.Add(ind.Quality.ToArray());
         }
       }
-
+      List<double[]> gaUnsuccessfulElites = new List<double[]>();
       int gaContribution = 0;
       for (int i = 0; i < gaBestQualities.Count; i++) {
         bool isDominated = false;
         foreach (var nsgaQlty in nsga2ParetoFrontQualities) {
-          var result = DominationCalculator<ISymbolicExpressionTree>.Dominates(gaBestQualities[i].ToArray(), nsgaQlty, Problem.Maximization, true);
+          var result = DominationCalculator<ISymbolicExpressionTree>.Dominates(gaBestQualities[i].ToArray(), nsgaQlty, maximizationArray, false);
           if (result == DominationResult.IsDominated) {
             isDominated = true;
+            gaUnsuccessfulElites.Add(gaBestQualities[i]);
+            break;
           }
         }
         if (!isDominated) {
           gaContributionParetoFront.Add(gaBestQualities[i].ToArray());
-          gaBestQualities.RemoveAt(i);
-          //gaBestQualities[i] = null;
-          i--;
+          nsga2ParetoWithNormalizedTree.Add(gaQualitiesWithNormalizedTree[i].ToArray());
           gaContribution++;
         }
       }
       if (gaContribution > 0) {
-        double[] refPoints;
-        
-        if (maximization) {
-          refPoints = new double[] { 0.0, MaxTreeLength };
-          maximizationArray = new bool[] { true, false };
-        } else {
-          refPoints = new double[] { 1.0, MaxTreeLength };
-          maximizationArray = new bool[] { false, false };
-        }
         nsga2ParetoFrontQualities.AddRange(gaContributionParetoFront);
-        //var transformedFront = nsga2ParetoFrontQualities.Select(solution => new double[] { 1 - solution[0], solution[1] });
-        var nsga2HypervolumeIncludingGASolutions = HypervolumeCalculation.Calculate(nsga2ParetoFrontQualities, refPoints, maximizationArray);
+
+        var nsga2HypervolumeIncludingGASolutions = HypervolumeCalculation.Calculate(nsga2ParetoWithNormalizedTree, ReferencePoint, maximizationArray);
         ResultsHypervolumeAlg2WithGAContribution = nsga2HypervolumeIncludingGASolutions;
         ResultsAlg2HypervolumeWithGAContributionRow.Values.Add(nsga2HypervolumeIncludingGASolutions);
         ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(ResultsHypervolumeAlg2);
         alg2.AppendToNSGA2Population(alg1.Elites, Problem, Alg2PopulationSize);
-        AnalyzeParetoFrontWhileCommunication(gaBestQualities, gaContributionParetoFront);
-        if (gaInterval > 5 && ResultsHypervolumeAlg2WithGAContribution > ResultsHypervolumeAlg2 && ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions && ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) {
-          pauseAlg2 = false;
-          ResultsAlg1RunIntervalInGenerations.Add(new IntValue(gaInterval));
-          Console.WriteLine($"gaInterval = {gaInterval}");
-          nsga2Interval = 0;
+        AnalyzeParetoFrontWhileCommunication(gaUnsuccessfulElites, gaContributionParetoFront);
+        if ((gaInterval > ExecutionInterval && ResultsHypervolumeAlg2WithGAContribution > ResultsHypervolumeAlg2) || ResultsAlg1Evaluations >= Alg1MaximumEvaluatedSolutions || ResultsActivePressure > MaximumSelectionPressure) {
+          if (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
+            pauseAlg2 = false;
+            ResultsAlg1RunIntervalInGenerations.Add(new IntValue(gaInterval));
+            nsga2Interval = 0;
+          }
         }
       }
-      //}
     }
     private void AnalyzeParetoFrontWhileCommunication(List<double[]> gaPF, List<double[]> gaContributePF) {
 
@@ -362,26 +357,26 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       }
 
       if (dataPointsParetoFront.Count > 0) {
-        ResultsScatterPlot.Rows["Communicated Points"].Points.Replace(dataPointsParetoFront);
+        ResultsScatterPlot.Rows["Unsuccessful Elites"].Points.Replace(dataPointsParetoFront);
       }
 
       if (dataPointsContributedPF.Count > 0) {
-        ResultsScatterPlot.Rows["Contributed Points"].Points.Replace(dataPointsContributedPF);
+        ResultsScatterPlot.Rows["Successful Elites"].Points.Replace(dataPointsContributedPF);
       }
-      var dataBestSofarPoints = new List<Point2D<double>>();
-      for (int i = 0; i < alg1.Elites.Count; i++) {
-        var qualities = alg1.Elites[i].Quality.ToArray();
-        var bestSofarQuality = new Point2D<double>(qualities[1], qualities[0]);
-        if (maximization) {
-          bestSofarQuality = new Point2D<double>(qualities[1], 1 - qualities[0]);
-        }
-        dataBestSofarPoints.Add(bestSofarQuality);
+      //var dataBestSofarPoints = new List<Point2D<double>>();
+      //for (int i = 0; i < alg1.Elites.Count; i++) {
+      //  var qualities = alg1.Elites[i].Quality.ToArray();
+      //  var bestSofarQuality = new Point2D<double>(qualities[1], qualities[0]);
+      //  if (maximization) {
+      //    bestSofarQuality = new Point2D<double>(qualities[1], 1 - qualities[0]);
+      //  }
+      //  dataBestSofarPoints.Add(bestSofarQuality);
         
-      }
+      //}
 
-      if (dataBestSofarPoints.Count > 0) {
-        ResultsScatterPlot.Rows["So-far Best Points"].Points.Replace(dataBestSofarPoints);
-      }
+      //if (dataBestSofarPoints.Count > 0) {
+      //  ResultsScatterPlot.Rows["So-far Best Points"].Points.Replace(dataBestSofarPoints);
+      //}
       
     }
   }

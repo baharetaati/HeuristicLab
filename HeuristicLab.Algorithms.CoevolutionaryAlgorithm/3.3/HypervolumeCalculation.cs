@@ -7,7 +7,7 @@ using HeuristicLab.Problems.TestFunctions.MultiObjective;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   public static class HypervolumeCalculation {
-    public static double Calculate(IEnumerable<double[]> front, double[] referencePoint, bool[] maximization, bool adjacentPointsConsideration = false) {
+    public static double Calculate(IEnumerable<double[]> front, double[] referencePoint, bool[] maximization, bool adjacentPointsConsideration = true) {
       front = NonDominatedSelect.GetDominatingVectors(front, referencePoint, maximization, false);
       if (!front.Any()) throw new ArgumentException("No point in the front dominates the referencePoint");
 
@@ -18,7 +18,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
     }
 
-    private static double Calculate2D(IEnumerable<double[]> front, double[] referencePoint, bool[] maximization, bool adjacentPointsConsideration) {
+    private static double Calculate2D(IEnumerable<double[]> front, double[] referencePoint, bool[] maximization, bool adjacentPointsConsideration=true) {
       if (front == null) throw new ArgumentNullException("Front must not be null.");
       if (!front.Any()) throw new ArgumentException("Front must not be empty.");
 
@@ -34,7 +34,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       else
         set = set.OrderBy(point => point[0]).ToArray();
 
-      double sum = 0;
+      double sum = 0.0;
       if (adjacentPointsConsideration) {
         for (int i = 0; i < set.Length - 1; i++) {
           sum += Math.Abs((set[i][0] - set[i + 1][0])) * Math.Abs((set[i][1] - referencePoint[1]));

@@ -13,28 +13,26 @@ using HeuristicLab.Problems.CooperativeProblem;
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("77A598F7-5523-4740-B12F-2802577C422B")]
   public class IndividualGA : Individual {
-    const double MinTreeLength = 1.0;
     [Storable]
     public double[] Weight { get; set; }
-    [Storable]
-    public double NormalizedTreeLength { get; set; }
+    
     #region Constructors
     [StorableConstructor]
     //Offspring creation
     protected IndividualGA(StorableConstructorFlag _): base(_) { }
     public IndividualGA(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, int qualityLength, double[] weight) : base(treeRequirements, solution, qualityLength) {
       Weight = weight.ToArray();
-      NormalizedTreeLength = -1.0;
+      
     }
     //Initializing solutions
     public IndividualGA(TreeRequirements treeRequirements, int qualityLength, double[] weight, CooperativeProblem problem, IRandom random)
          : base(treeRequirements, qualityLength, problem, random) {
       Weight = weight.ToArray();
-      NormalizedTreeLength = -1.0;
+      
     }
     protected IndividualGA(IndividualGA original, Cloner cloner):base(original, cloner) {
       Weight = original.Weight;
-      NormalizedTreeLength = original.NormalizedTreeLength;
+      
     }
     #endregion
     #region Cloning
@@ -56,7 +54,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       Quality[0] = qlty[0];
       Quality[1] = qlty[1];
-      NormalizedTreeLength = (double)(qlty[1] - MinTreeLength) / (problem.SymbolicExpressionTreeMaximumLength - MinTreeLength);
+      NormalizedTreeLength = (double)(qlty[1] - _treeRequirements.MinTreeLength) / (_treeRequirements.MaxTreeLength - _treeRequirements.MinTreeLength);
       var f1 = Weight[0] * Math.Abs(qlty[0]);
       var f2 = Weight[1] * Math.Abs(NormalizedTreeLength);
       Quality[2] = Math.Max(f1, f2);

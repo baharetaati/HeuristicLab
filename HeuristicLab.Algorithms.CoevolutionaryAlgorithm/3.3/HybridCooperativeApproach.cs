@@ -32,50 +32,23 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
 
   public class HybridCooperativeApproach : Orchestrator {
+    
+    //[Storable]
+    //public TreeRequirements treeRequirements;
+
     [StorableConstructor]
     protected HybridCooperativeApproach(StorableConstructorFlag _) : base(_) {}
     protected HybridCooperativeApproach(HybridCooperativeApproach original, Cloner cloner)
-      : base(original, cloner) {
-      alg1QualityLength = original.alg1QualityLength;
-    }
+      : base(original, cloner) {}
     public override IDeepCloneable Clone(Cloner cloner) {
       return new HybridCooperativeApproach(this, cloner);
     }
-    public HybridCooperativeApproach() : base(){
-      Parameters.Add(new FixedValueParameter<BoolValue>("Run Two Algorithms Separately", "To define if two algorithms should be run independently", new BoolValue(false)));
-      Parameters.Add(new FixedValueParameter<BoolValue>("ActiveOffspringSelector", "To define if offspring selector should be applied ", new BoolValue(true)));
-
-    }
+    public HybridCooperativeApproach() : base(){}
     protected override void Initialize(CancellationToken cancellationToken) {
-      treeRequirements = new TreeRequirements(MaxTreeLength, MaxTreeDepth, MutationProbability);
-
-      // Algorithm 1 Parameters
-      alg1QualityLength = Problem.NumObjectives + 1;
-      //alg1 = new DecompositionBasedGA(alg1QualityLength, treeRequirements, Alg1Selector);
-      alg1 = new DecompositionBasedGA(alg1QualityLength, treeRequirements, Alg1Selector, OffspringParentsComparisonTypes.EpsilonLexicaseBasedComparison);
-      numSelectedIndividualsGA = 2 * (Alg1PopulationSize - ElitesAlg1);
-      gaInterval = 0;
-      adjustWeightInterval = Alg1MaximumGenerations / 5;
-      
-
-      // Algorithm 2 Parameters
-      numSelectedIndividualNSGA = 2 * Alg2PopulationSize;
-      alg2 = new NSGA2(Problem.NumObjectives, treeRequirements);
-      Alg1MaximumGenerations = Alg1MaximumEvaluatedSolutions / Alg1PopulationSize;
-      Alg2MaximumGenerations = Alg2MaximumEvaluatedSolutions / Alg2PopulationSize;
-      pauseAlg2 = false;
-      nsga2Interval = 0;
-
-      if (SetSeedRandomly) {
-        Seed = RandomSeedGenerator.GetSeed();
-      }
-
-      random.Reset(Seed);
-      InitResults();
       base.Initialize(cancellationToken);
     }
     protected override void Run(CancellationToken cancellationToken) {
-      while (((ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) && (ResultsActivePressure <= 100)) || (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions)) {
+      while ((ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions && ResultsActivePressure <= 100) || ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
         try {
           Iterate();
           cancellationToken.ThrowIfCancellationRequested();
@@ -104,7 +77,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
           ResultsAlg1Evaluations += countGAEvaluations;
         }
         else {
-          if (ActiveOffspringSelector && (ResultsActivePressure <= 100)) {
+          if (ActiveOffspringSelector && (ResultsActivePressure <= MaximumSelectionPressure)) {
             //var selectedParents = alg1.ApplySelectionAndClearation(random, numSelectedIndividualsGA, Problem.Maximization[0]);
             //ResultsActivePressure = 0.0;
             //ResultsCountSuccessfulOffspring = 0;

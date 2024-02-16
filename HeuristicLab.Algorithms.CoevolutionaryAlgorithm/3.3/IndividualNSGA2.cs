@@ -24,10 +24,10 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     [StorableConstructor]
     protected IndividualNSGA2(StorableConstructorFlag _) : base(_) { }
     //Recreating the individual of NSGA2
-    public IndividualNSGA2(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality, int rank, double crowdingDist):base(treeRequirements, solution, quality) {
-      Rank = rank;
-      CrowdingDistance = crowdingDist;
-    }
+    //public IndividualNSGA2(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality, int rank, double crowdingDist):base(treeRequirements, solution, quality) {
+    //  Rank = rank;
+    //  CrowdingDistance = crowdingDist;
+    //}
     //Offspring creation
     public IndividualNSGA2(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, int qualityLength) : base(treeRequirements, solution, qualityLength) {
       Rank = -1;
@@ -41,7 +41,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       CrowdingDistance = -1.0;
 
     }
-    public IndividualNSGA2(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality) : base(treeRequirements, solution, quality) {
+    public IndividualNSGA2(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality, double normalizedTreeLength) : base(treeRequirements, solution, quality, normalizedTreeLength) {
       Rank = -1;
       CrowdingDistance = -1.0;
     }
@@ -60,8 +60,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     public override double[] Evaluate(IRandom random, CooperativeProblem problem) {
       //bool maximization = problem.Maximization[0];
       Quality = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
+      NormalizedTreeLength = (double)(Quality[1] - _treeRequirements.MinTreeLength) / (_treeRequirements.MaxTreeLength - _treeRequirements.MinTreeLength);
       //if (maximization) {
-        
+
       //} else {
       //  Quality = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
       //  //Quality = problem.EvaluateUnconstrainedMultiObjectiveProblem(Solution, random);
