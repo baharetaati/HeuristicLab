@@ -28,10 +28,9 @@ using System.Net.Mime;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("5EF90076-0721-4503-B60A-6417CDAEEADA")]
-  public abstract class Orchestrator : CooperativeApproachBase{
+  public abstract class Orchestrator : CooperativeApproachBase {
     const double Epsilon = 1e-6;
-    const int NumObjectives = 2;
-    static readonly double[] ReferencePoint = new double[2] { 1.0, 1.0 };
+    public static readonly double[] ReferencePoint = new double[2] { 1.0, 1.0 };
     static readonly double[] IdealPoint = new double[] { 0.0, 0.0 };
     #region Parameters
     public IFixedValueParameter<IntValue> ExecutionIntervalParameter {
@@ -49,13 +48,13 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       get { return (ItemList<IntValue>)Results["Algorithm1 Run Interval Generations"].Value; }
       set { Results["Algorithm1 Run Interval Generations"].Value = value; }
     }
-    public double ResultsHypervolumeAlg2WithGAContribution {
-      get { return ((DoubleValue)Results["Hypervolume for Algorithm2 With Algorithm1 Contribution"].Value).Value; }
-      set { ((DoubleValue)Results["Hypervolume for Algorithm2 With Algorithm1 Contribution"].Value).Value = value; }
-    }
     public double ResultsHypervolumeAlg2 {
       get { return ((DoubleValue)Results["Hypervolume for Algorithm2"].Value).Value; }
       set { ((DoubleValue)Results["Hypervolume for Algorithm2"].Value).Value = value; }
+    }
+    public double ResultsHypervolumeAlg2WithGAContribution {
+      get { return ((DoubleValue)Results["Hypervolume for Algorithm2 With Algorithm1 Contribution"].Value).Value; }
+      set { ((DoubleValue)Results["Hypervolume for Algorithm2 With Algorithm1 Contribution"].Value).Value = value; }
     }
     public DataTable ResultsHypervolumeData {
       get { return ((DataTable)Results["Hypervolume Data"].Value); }
@@ -82,12 +81,12 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     #region Constructors
     [StorableConstructor]
     protected Orchestrator(StorableConstructorFlag _) : base(_) { }
-    protected Orchestrator(Orchestrator original, Cloner cloner):base(original,cloner) {
+    protected Orchestrator(Orchestrator original, Cloner cloner) : base(original, cloner) {
       pauseAlg2 = original.pauseAlg2;
       gaInterval = original.gaInterval;
       nsga2Interval = original.nsga2Interval;
     }
-    public Orchestrator():base() {
+    public Orchestrator() : base() {
       Parameters.Add(new FixedValueParameter<IntValue>("Execution Interval", "Generation numbers Algorithm2 runs", new IntValue(10)));
     }
     #endregion
@@ -100,10 +99,12 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     }
     public override void InitResults() {
       base.InitResults();
-      Results.Add(new Result("Hypervolume for Algorithm2", "Current hypervolume for NSGA2", new DoubleValue(0.0)));
+
       Results.Add(new Result("Hypervolume for Algorithm2 With Algorithm1 Contribution", "NSGA2 hypervolume with Algorithm1 contribution", new DoubleValue(0.0)));
       Results.Add(new Result("Algorithm1 Run Interval Generations", "Algorithm1 Generation Interval", new ItemList<IntValue>()));
       Results.Add(new Result("Algorithm2 Run Interval Generations", "Algorithm2 Generation Interval", new ItemList<IntValue>()));
+
+      Results.Add(new Result("Hypervolume for Algorithm2", "Current hypervolume for NSGA2", new DoubleValue(0.0)));
 
       var tableHypervolume = new DataTable("Hypervolume Data");
 
@@ -121,48 +122,57 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       Results.Add(new Result("Hypervolume Data", tableHypervolume));
     }
-    public void IterateOrchestrator() {
-      if (!pauseAlg2) {
-        if (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
-          var nsgaCountEvaluations = 0;
-          var countNSGAEvaluations = alg2.Apply(Alg2PopulationSize, numSelectedIndividualNSGA, Problem, ResultsAlg2Iterations, random);
-          nsgaCountEvaluations += countNSGAEvaluations;
-          ResultsAlg2Evaluations += nsgaCountEvaluations;
-          nsga2Interval++;
-        } 
+    private void IterateAlg1() {
+      int countGAEvaluations = 0;
+      if (ResultsAlg1Iterations == 0) {
+        countGAEvaluations = alg1.ApplyForInitialization(random, Alg1PopulationSize, Problem);
       } else {
         if (ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions) {
-          var gaCountEvaluations = 0;
-          int countGAEvaluations = 0;
-          if (ResultsAlg1Iterations == 0) {
-            countGAEvaluations = alg1.ApplyForInitialization(random, Alg1PopulationSize, Problem);
-          }
-          else {
-            if (ActiveOffspringSelector) {
-              if (ResultsActivePressure <= MaximumSelectionPressure) {
-                countGAEvaluations = alg1.ApplyStrictOffspringSelection(Alg1PopulationSize, Problem, random);
-                ResultsActivePressure = alg1.ActiveSelectionPressure;
-                ResultsCountSuccessfulOffspring = alg1.CountSuccessfulOffspring;
-                ResultsCountUnsuccessfulOffspring = alg1.CountUnsuccessfulOffspring;
-              } 
-            } else {
-              countGAEvaluations = alg1.Apply(Alg1PopulationSize, Problem, random);
+          if (ActiveOffspringSelector) {
+            if (ResultsActivePressure <= MaximumSelectionPressure) {
+              countGAEvaluations = alg1.ApplyStrictOffspringSelection(Alg1PopulationSize, Problem, random);
+              ResultsActivePressure = alg1.ActiveSelectionPressure;
+              ResultsCountSuccessfulOffspring = alg1.CountSuccessfulOffspring;
+              ResultsCountUnsuccessfulOffspring = alg1.CountUnsuccessfulOffspring;
             }
-            
+          } else {
+            countGAEvaluations = alg1.Apply(Alg1PopulationSize, Problem, random);
+
           }
-          gaCountEvaluations += countGAEvaluations;
-          ResultsAlg1Evaluations += gaCountEvaluations;
-          gaInterval++;
-        } 
+        }
+
+      }
+      ResultsAlg1Evaluations += countGAEvaluations;
+    }
+    
+    private void IterateAlg2() {
+      if (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
+        var nsgaCountEvaluations = 0;
+        var countNSGAEvaluations = alg2.Apply(Alg2PopulationSize, numSelectedIndividualNSGA, Problem, ResultsAlg2Iterations, random);
+        nsgaCountEvaluations += countNSGAEvaluations;
+        ResultsAlg2Evaluations += nsgaCountEvaluations;
       }
     }
-    public void AnalyzeOrchestrator() {
+    public void Iterate() {
+      if (RunSeparately) {
+        IterateAlg2();
+        //IterateAlg1();
+      } else {
+        if (!pauseAlg2) {
+          IterateAlg2();
+          nsga2Interval++;
+        } else {
+          IterateAlg1();
+          gaInterval++;
+        }
+      }
+      
+    }
+    public void Analyze() {
       if (!pauseAlg2) {
         NSGA2Analyzer();
         bool maximization = Problem.Maximization[0];
         bool[] maximizationArray = Problem.Maximization;
-        
-        List<double[]> nsga2ParetoFrontQualities = new List<double[]>();
         List<double[]> nsga2ParetoFrontWithNormalizeTree = new List<double[]>();
 
         if (alg2.CurrentFronts[0].Count > 0) {
@@ -171,29 +181,34 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
             paretoPoint[0] = ind.Quality[0];
             paretoPoint[1] = ind.NormalizedTreeLength;
             nsga2ParetoFrontWithNormalizeTree.Add(paretoPoint);
-            nsga2ParetoFrontQualities.Add(ind.Quality.ToArray());
           }
         }
-
         var nsga2Hypervolume = HypervolumeCalculation.Calculate(nsga2ParetoFrontWithNormalizeTree, ReferencePoint, maximizationArray);
-        
-        
-        if ((nsga2Interval > ExecutionInterval && nsga2Hypervolume > ResultsHypervolumeAlg2) || ResultsAlg2Evaluations >= Alg2MaximumEvaluatedSolutions) {
-          if (ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions && ResultsActivePressure <= MaximumSelectionPressure) {
-            ResultsAlg2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
-            pauseAlg2 = true;
-            gaInterval = 0;
-            if (ResultsAlg1Iterations != 0) {
-              AdjustWeights(nsga2ParetoFrontWithNormalizeTree);
+        if (RunSeparately) {
+          ResultsHypervolumeAlg2 = nsga2Hypervolume;
+          ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(nsga2Hypervolume);
+        } else {
+          if ((nsga2Interval > ExecutionInterval && nsga2Hypervolume > ResultsHypervolumeAlg2) || ResultsAlg2Evaluations >= Alg2MaximumEvaluatedSolutions) {
+            if (ResultsAlg1Evaluations < Alg1MaximumEvaluatedSolutions && ResultsActivePressure <= MaximumSelectionPressure) {
+              ResultsAlg2RunIntervalInGenerations.Add(new IntValue(nsga2Interval));
+              pauseAlg2 = true;
+              gaInterval = 0;
+              if (ResultsAlg1Iterations != 0) {
+                AdjustWeights(nsga2ParetoFrontWithNormalizeTree);
+              }
             }
-          }
-        }  
-        ResultsHypervolumeAlg2 = nsga2Hypervolume;
-        ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(nsga2Hypervolume);
-        ResultsAlg2HypervolumeWithGAContributionRow.Values.Add(ResultsHypervolumeAlg2WithGAContribution);
+          }  
+          ResultsHypervolumeAlg2 = nsga2Hypervolume;
+          ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(nsga2Hypervolume);
+          ResultsAlg2HypervolumeWithGAContributionRow.Values.Add(ResultsHypervolumeAlg2WithGAContribution);
+
+        }
       } else {
         GAAnalyzer();
-        CommunicationGAToNSGA2();
+        if (gaInterval > ExecutionInterval || ResultsAlg1Evaluations >= Alg1MaximumEvaluatedSolutions) {
+          Communication();
+        }
+        
       }
     }
     private void AdjustWeights(List<double[]> paretoFront) {
@@ -243,7 +258,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         alg1.SetWeight(weight, nearestEliteIndex);
       }
     }
-    private void CommunicationGAToNSGA2() {
+    private void Communication() {
       //if (pauseAlg2) {
       // Scenario two: Considering the best error values
       //var gaBestSolutions = GABestErrorSelection();
@@ -324,12 +339,34 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         ResultsAlg2HypervolumeWithoutGAContributionRow.Values.Add(ResultsHypervolumeAlg2);
         alg2.AppendToNSGA2Population(alg1.Elites, Problem, Alg2PopulationSize);
         AnalyzeParetoFrontWhileCommunication(gaUnsuccessfulElites, gaContributionParetoFront);
-        if ((gaInterval > ExecutionInterval && ResultsHypervolumeAlg2WithGAContribution > ResultsHypervolumeAlg2) || ResultsAlg1Evaluations >= Alg1MaximumEvaluatedSolutions || ResultsActivePressure > MaximumSelectionPressure) {
-          if (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
-            pauseAlg2 = false;
-            ResultsAlg1RunIntervalInGenerations.Add(new IntValue(gaInterval));
-            nsga2Interval = 0;
+       
+      } else {
+        if (alg2.CurrentFronts[0].Count > 0) {
+          List<int> indexList = new List<int>();
+          foreach (var qlty in nsga2ParetoWithNormalizedTree) {
+            double minDist = double.MaxValue;
+            int chosenIndex = -1;
+            for (int gaEliteIndex = 0; gaEliteIndex < gaQualitiesWithNormalizedTree.Count; gaEliteIndex++) {
+              double dist = Math.Sqrt((gaQualitiesWithNormalizedTree[gaEliteIndex][0] - qlty[0]) * (gaQualitiesWithNormalizedTree[gaEliteIndex][0] - qlty[0]) + (gaQualitiesWithNormalizedTree[gaEliteIndex][1] - qlty[1]) * (gaQualitiesWithNormalizedTree[gaEliteIndex][1] - qlty[1]));
+              if (dist < minDist) {
+                chosenIndex = gaEliteIndex;
+                minDist = dist;
+              }
+            }
+            if (chosenIndex != -1) {
+              indexList.Add(chosenIndex);
+            } else {
+              throw new ArgumentOutOfRangeException($"Index={chosenIndex} is out of range");
+            }
           }
+          alg1.AppendToGAPopulation(alg2.CurrentFronts[0], indexList, maximization);
+        }
+      }
+      if ((gaInterval > ExecutionInterval && ResultsHypervolumeAlg2WithGAContribution > ResultsHypervolumeAlg2) || ResultsAlg1Evaluations >= Alg1MaximumEvaluatedSolutions || ResultsActivePressure > MaximumSelectionPressure) {
+        if (ResultsAlg2Evaluations < Alg2MaximumEvaluatedSolutions) {
+          pauseAlg2 = false;
+          ResultsAlg1RunIntervalInGenerations.Add(new IntValue(gaInterval));
+          nsga2Interval = 0;
         }
       }
     }

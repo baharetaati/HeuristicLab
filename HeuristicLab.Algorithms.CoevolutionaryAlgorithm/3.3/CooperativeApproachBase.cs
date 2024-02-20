@@ -26,7 +26,9 @@ using HeuristicLab.PluginInfrastructure;
 
 namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
   [StorableType("A9AB48B7-F416-4FFB-A9B1-231F579411DF")]
+  
   public abstract class CooperativeApproachBase : BasicAlgorithm{
+    public const int NumObjectives = 2;
     #region Problem Properties
     public override Type ProblemType {
       get { return typeof(CooperativeProblem); }
@@ -301,7 +303,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       get { return (ScatterPlot)Results["Pareto Front Analysis"].Value; }
       set { Results["Pareto Front Analysis"].Value = value; }
     }
-   
+    
     #endregion
     #region Storable fields
     [Storable]
@@ -396,12 +398,8 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       Results.Add(new Result("Algorithm1 Timetable Qualities", table));
 
-      var numColumns = problem.NumObjectives;
-
-      ResultsParetoFrontAlg2 = new DoubleMatrix(Alg2PopulationSize, numColumns);
-      //ResultsQualitiesAlg1 = new DoubleMatrix(Alg1PopulationSize, numColumns + 1);
-      ResultsQualitiesAlg1 = new DoubleMatrix(Alg1PopulationSize, numColumns + 1);
-      //ResultsElitesAlg1 = new DoubleMatrix(11, numColumns + 1);
+      ResultsParetoFrontAlg2 = new DoubleMatrix(Alg2PopulationSize, NumObjectives);
+      ResultsQualitiesAlg1 = new DoubleMatrix(Alg1PopulationSize, NumObjectives + 1);
 
       ScatterPlot scatterPlot = new ScatterPlot("Quality vs Tree Size", "");
       scatterPlot.VisualProperties.XAxisTitle = "Tree Size";
@@ -453,20 +451,17 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       treeRequirements = new TreeRequirements(MaxTreeLength, MinTreeLength, MaxTreeDepth, MutationProbability);
       
       // Algorithm 1 Parameters
-      alg1QualityLength = Problem.NumObjectives + 1;
+      alg1QualityLength = NumObjectives + 1;
       alg1 = new DecompositionBasedGA(alg1QualityLength, treeRequirements, Alg1Selector, OffspringParentsComparisonTypes.EpsilonLexicaseBasedComparison, SegmentNo);
       numSelectedIndividualsGA = 2 * (Alg1PopulationSize - ElitesAlg1);
       Alg1MaximumGenerations = Alg1MaximumEvaluatedSolutions / Alg1PopulationSize;
 
       // Algorithm 2 Parameters
       numSelectedIndividualNSGA = 2 * Alg2PopulationSize;
-      alg2 = new NSGA2(Problem.NumObjectives, treeRequirements);
+      alg2 = new NSGA2(NumObjectives, treeRequirements);
       Alg2MaximumGenerations = Alg2MaximumEvaluatedSolutions / Alg2PopulationSize;
       base.Initialize(cancellationToken);
     }
-
-
-
     //Analyzers
     public void GAAnalyzer() {
       ISymbolicExpressionTree treeGA = (ISymbolicExpressionTree)alg1.Elite.Solution.Clone();
@@ -488,22 +483,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
     }
     public void NSGA2Analyzer() {
-     
-      //double evalNo = ResultsAlg2Evaluations;
-
-      //if (maximization) {
-      //  if ((ResultsBestQualityAlg2.Count() != 0 && bestQlty > ResultsBestQualityAlg2[0]) || (ResultsBestQualityAlg2.Count() == 0)) {
-      //    pauseAlg2 = true;
-      //  }
-      //} else {
-      //  if ((ResultsBestQualityAlg2.Count() != 0 && bestQlty < ResultsBestQualityAlg2[0]) || (ResultsBestQualityAlg2.Count() == 0)) {
-      //    pauseAlg2 = true;
-      //  }
-      //}
-
       var nsga2Fitness = alg2.Fitness;
       for (int i = 0; i < Alg2PopulationSize; i++) {
-        for (int k = 0; k < Problem.NumObjectives; k++) {
+        for (int k = 0; k < NumObjectives; k++) {
           ResultsParetoFrontAlg2[i, k] = nsga2Fitness[i][k];
         }
       }
@@ -522,7 +504,7 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         ResultsBestQualitiesAlg2.Add(nonDominatedQuality);
       }
       
-
+      
       AnalyzeParetoFront();
       ResultsAlg2Iterations++;
     }
@@ -585,7 +567,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
         yield return "Objective " + i.ToString();
       }
     }
-
     #region Events
     protected override void OnExecutionTimeChanged() {
       base.OnExecutionTimeChanged();

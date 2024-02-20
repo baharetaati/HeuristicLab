@@ -30,6 +30,9 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       Weight = weight.ToArray();
       
     }
+    public IndividualGA(TreeRequirements treeRequirements, ISymbolicExpressionTree solution, double[] quality, double normalizedTreeLength, double[] weight) : base(treeRequirements, solution, quality, normalizedTreeLength) {
+      Weight = weight.ToArray();
+    }
     protected IndividualGA(IndividualGA original, Cloner cloner):base(original, cloner) {
       Weight = original.Weight;
       

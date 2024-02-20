@@ -264,6 +264,51 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
       var errValues = CreateFitList(errIndex);
       AverageQuality = CalculateAverage(errValues);
     }
+    public void AppendToGAPopulation(List<IndividualNSGA2> nsgaPareto, List<int> subPopIndices, bool maximization) {
+      var countsIndividuals = Population.Select(subpopulation => subpopulation.Count).ToList();
+      bool sortDescending = true;
+      if (maximization)
+        sortDescending = false;
+      for (int nsgaInd = 0; nsgaInd < nsgaPareto.Count; nsgaInd++) {
+        int subPopIndex = subPopIndices[nsgaInd];
+        var subFit = new List<double>();
+        foreach (var gaInd in Population[subPopIndex]) {
+          subFit.Add(gaInd.Quality[0]);
+        }
+        
+        List<int> indexes = Enumerable.Range(0, countsIndividuals[subPopIndex]).ToList();
+
+        if (sortDescending) {
+          indexes.Sort((i1, i2) => -subFit[i1].CompareTo(subFit[i2]));
+        } else {
+          indexes.Sort((i1, i2) => subFit[i1].CompareTo(subFit[i2]));
+        }
+        double weightedQlty = nsgaPareto[nsgaInd].CalculateWeight(Weights[subPopIndex].ToArray());
+        double[] qlty = new double[] { nsgaPareto[nsgaInd].Quality[0], nsgaPareto[nsgaInd].Quality[1], weightedQlty };
+        var addedIndividual = new IndividualGA(_treeRequirements, (ISymbolicExpressionTree)nsgaPareto[nsgaInd].Solution.Clone(), qlty, nsgaPareto[nsgaInd].NormalizedTreeLength, Weights[subPopIndex].ToArray());
+        Population[subPopIndex][indexes[0]] = addedIndividual;
+        if (subPopIndex == 0) {
+          Fitness[indexes[0]] = qlty;
+        } else {
+          int specificIndx = 0;
+          for (int kCount = 0; kCount < subPopIndex - 1; kCount++) {
+            specificIndx += countsIndividuals[kCount];
+          }
+          Fitness[specificIndx + indexes[0]] = qlty;
+        }
+        bool isBetter = false;
+        if ((maximization && qlty[QualityLength - 1] > Elites[subPopIndex].Quality[QualityLength - 1]) ||
+          (!maximization && qlty[QualityLength - 1] < Elites[subPopIndex].Quality[QualityLength - 1])) {
+          isBetter = true;
+        }
+        if (isBetter) {
+          Elites[subPopIndex] = (IndividualGA)addedIndividual.Clone();
+
+        }
+      }
+      SetElite(maximization);
+      FindBestWorstAverageQuality(maximization);
+    }
     public int Apply(int populationSize, CooperativeProblem problem, IRandom random) {
       var countEvaluations = 0;
       bool maximization = problem.Maximization[0];
@@ -580,7 +625,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
               if (newPop.Count == countsIndividuals[i]) {
                 break;
               }
-            
           }
         }
         Population[i].Clear();

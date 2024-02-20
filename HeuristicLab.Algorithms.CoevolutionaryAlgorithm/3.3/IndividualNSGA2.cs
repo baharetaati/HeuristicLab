@@ -57,6 +57,11 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
     #endregion
     public void SetRank(int rank) { this.Rank = rank; }
     public void SetCrowdingDistance(double crowdingDist) { this.CrowdingDistance = crowdingDist; }
+    public double CalculateWeight(double[] weight) {
+      var f1 = weight[0] * Math.Abs(Quality[0]);
+      var f2 = weight[1] * Math.Abs(NormalizedTreeLength);
+      return Math.Max(f1, f2); 
+    }
     public override double[] Evaluate(IRandom random, CooperativeProblem problem) {
       //bool maximization = problem.Maximization[0];
       Quality = problem.EvaluateMultiObjectivePearsonRsquaredError(Solution, random);
@@ -70,5 +75,6 @@ namespace HeuristicLab.Algorithms.CoevolutionaryAlgorithm {
 
       return Quality;
     }
+    
   }
 }
